@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>(주)대광건영 산업안전보건관리비 검토 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --navy:#1B2FA0;--navy-d:#131F6B;--navy-dim:rgba(27,47,160,.08);--navy-dim2:rgba(27,47,160,.15);
+  --green:#009944;--green-dim:rgba(0,153,68,.1);--green-dim2:rgba(0,153,68,.18);
+  --red:#D32F2F;--red-dim:rgba(211,47,47,.08);
+  --amber:#F57C00;--amber-dim:rgba(245,124,0,.1);
+  --bg:#F4F6FB;--bg2:#fff;--bg3:#EEF1F9;--bg4:#E4E9F5;
+  --border:rgba(27,47,160,.12);--border2:rgba(27,47,160,.2);
+  --text:#1A1F3A;--text2:#4A5280;--text3:#8A92B8;
+  --shadow:0 2px 12px rgba(27,47,160,.08);
+  --r:10px;--rl:14px;--amber:#F57C00;
+  --sans:'Noto Sans KR',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;}
+.hdr{background:linear-gradient(135deg,var(--navy-d),var(--navy));position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(19,31,107,.25);}
+.hdr-in{max-width:980px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;}
+.hdr-title strong{font-size:16px;font-weight:700;color:#fff;display:block;}
+.hdr-title span{font-size:11px;color:rgba(255,255,255,.6);}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+
+
+.ver-badge{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.12);padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);}
+.tab-bar{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:60px;z-index:99;}
+.tab-bar-in{max-width:980px;margin:0 auto;padding:0 24px;display:flex;}
+.tab{padding:14px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.tab:hover{color:var(--navy);}
+.tab.on{color:var(--navy);border-bottom-color:var(--navy);}
+.tab-cnt{font-size:10px;font-weight:700;background:var(--navy-dim);color:var(--navy);padding:1px 6px;border-radius:10px;}
+.main{max-width:980px;margin:0 auto;padding:28px 24px 80px;}
+.pane{display:none;}
+.pane.on{display:block;}
+.sec-t{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.sec-t::after{content:'';flex:1;height:1px;background:var(--border);}
+.gl-box{background:var(--bg2);border:1px solid rgba(27,47,160,.2);border-top:3px solid var(--navy);border-radius:var(--rl);padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow);}
+.gl-t{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:12px;}
+.gl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.gl-item{background:var(--bg3);border-radius:var(--r);padding:12px;border:1px solid var(--border);}
+.gl-item strong{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.gl-item p{font-size:11px;color:var(--text2);line-height:1.8;}
+.gl-val{color:var(--navy);font-weight:600;}
+.api-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow);}
+.api-t{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;}
+.api-row{display:flex;gap:8px;margin-bottom:8px;}
+.api-inp{flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:9px 13px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;transition:all .2s;}
+.api-inp:focus{border-color:var(--navy);background:var(--bg2);}
+.api-inp::placeholder{color:var(--text3);}
+.api-save{padding:9px 16px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+.api-save:hover{background:var(--navy-d);}
+.api-st{font-size:12px;color:var(--text3);}
+.api-st.ok{color:var(--green);}
+.api-hint{font-size:11px;color:var(--text3);margin-top:6px;}
+.api-hint a{color:var(--navy);}
+.upload{border:2px dashed var(--border2);border-radius:var(--rl);padding:40px 20px;text-align:center;cursor:pointer;background:var(--bg2);margin-bottom:12px;transition:all .2s;box-shadow:var(--shadow);}
+.upload:hover,.upload.drag{border-color:var(--navy);background:var(--navy-dim);}
+.upload-ico{width:56px;height:56px;background:var(--navy-dim);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:28px;}
+.upload-t{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.upload-s{font-size:12px;color:var(--text2);}
+.frow{display:none;align-items:center;gap:12px;padding:12px 16px;background:var(--bg2);border:1.5px solid var(--green);border-radius:var(--r);margin-bottom:12px;}
+.fmeta{flex:1;}
+.fname{font-size:13px;font-weight:600;color:var(--text);}
+.fsize{font-family:var(--mono);font-size:11px;color:var(--text3);}
+.frem{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:4px;border-radius:4px;}
+.frem:hover{color:var(--red);background:var(--red-dim);}
+.warn-box{display:none;padding:9px 12px;background:#FFF8E1;border:1px solid rgba(245,124,0,.3);border-radius:var(--r);font-size:12px;color:var(--amber);margin-bottom:12px;}
+.run-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--navy),var(--navy-d));color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 4px 14px rgba(27,47,160,.3);}
+.run-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 24px rgba(27,47,160,.35);}
+.run-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.ld-box{display:none;margin-top:18px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:40px 20px;text-align:center;}
+.spin{width:44px;height:44px;border:3px solid var(--bg4);border-top-color:var(--navy);border-radius:50%;animation:sp .9s linear infinite;margin:0 auto 14px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.ld-steps{display:flex;gap:6px;justify-content:center;margin-bottom:10px;}
+.ld-dot{width:7px;height:7px;border-radius:50%;background:var(--bg4);transition:all .3s;}
+.ld-dot.on{background:var(--navy);transform:scale(1.2);}
+.ld-txt{font-size:13px;color:var(--text2);}
+.progress-bar{height:6px;background:var(--bg3);border-radius:3px;margin:8px 24px 0;overflow:hidden;display:none;}
+.progress-fill{height:100%;background:var(--navy);border-radius:3px;transition:width .4s;}
+.err-box{display:none;margin-top:14px;border-radius:var(--rl);overflow:hidden;}
+.err-head{padding:10px 14px;background:#FFEBEE;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--red);}
+.err-body{padding:10px 14px;background:var(--bg2);border:1px solid rgba(211,47,47,.2);font-size:12px;color:var(--text2);line-height:1.7;border-radius:0 0 var(--r) var(--r);}
+.err-code{display:block;background:var(--bg3);padding:8px;border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--text);margin-top:6px;word-break:break-all;}
+.report-wrap{display:none;margin-top:20px;}
+.report-hdr{background:linear-gradient(135deg,var(--navy-d),var(--navy));border-radius:var(--rl) var(--rl) 0 0;padding:20px 24px;}
+.report-hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.report-ttl{font-size:20px;font-weight:700;color:#fff;}
+.rv{padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;}
+.rv-ok{background:rgba(0,200,83,.2);color:#6EE8A2;border:1px solid rgba(0,200,83,.4);}
+.rv-warn{background:rgba(255,167,38,.2);color:#FFD54F;border:1px solid rgba(255,167,38,.4);}
+.rv-bad{background:rgba(255,82,82,.2);color:#FF8A80;border:1px solid rgba(255,82,82,.4);}
+.report-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.rmi{background:rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;}
+.rmi-l{font-size:10px;color:rgba(255,255,255,.6);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;}
+.rmi-v{font-size:13px;font-weight:600;color:#fff;line-height:1.3;}
+.report-body{background:var(--bg2);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px 24px;}
+.rs{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.rs:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.rs-t{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.rs-t.red{color:var(--red);}
+.rs-t.blue{color:var(--navy);}
+.rs-t.green{color:var(--green);}
+.rs-ico{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.ico-r{background:var(--red-dim);color:var(--red);}
+.ico-b{background:var(--navy-dim);color:var(--navy);}
+.ico-g{background:var(--green-dim);color:var(--green);}
+.ico-n{background:var(--bg3);color:var(--text2);}
+.rs-txt{font-size:13px;color:var(--text);line-height:1.85;white-space:pre-wrap;}
+.badge-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.bl{font-size:11px;color:var(--text2);}
+.chip{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:3px 9px;border-radius:4px;}
+.ck{background:rgba(0,153,68,.12);color:var(--green);}
+.cw{background:var(--amber-dim);color:var(--amber);}
+.ce{background:var(--red-dim);color:var(--red);}
+.cn{background:var(--bg3);color:var(--text2);}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{padding:8px 10px;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg3);border-bottom:1.5px solid var(--border);text-align:left;}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;line-height:1.5;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--bg3);}
+.mu{font-size:11px;color:var(--text2);}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.ib{background:var(--bg3);border-radius:var(--r);padding:10px 12px;border:1px solid var(--border);}
+.ib-l{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.ib-v{font-size:12px;color:var(--text);line-height:1.5;}
+.ok-banner{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--green-dim);border:1px solid rgba(0,153,68,.2);border-radius:var(--r);margin-bottom:10px;font-size:13px;font-weight:500;color:var(--green);}
+.disc-box{padding:9px 12px;background:var(--red-dim);border:1px solid rgba(211,47,47,.2);border-radius:var(--r);font-size:12px;color:var(--red);margin-bottom:10px;}
+.legal-box{margin-top:12px;padding:12px 14px;background:var(--red-dim);border:1px solid rgba(211,47,47,.18);border-radius:var(--r);}
+.legal-t{font-size:11px;font-weight:600;color:var(--red);margin-bottom:4px;}
+.legal-d{font-size:12px;color:#8B4040;line-height:1.7;}
+.iss-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.iss-row:last-child{border-bottom:none;}
+.dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.de{background:var(--red);}.dw{background:var(--amber);}.do{background:var(--green);}
+.iss-t{font-size:13px;color:var(--text);line-height:1.6;}
+
+.report-acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.btn-navy{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+.btn-navy:hover{background:var(--navy-d);}
+.btn-outline{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:var(--bg2);color:var(--navy);border:1.5px solid var(--border2);border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+.btn-outline:hover{background:var(--navy-dim);}
+.btn-gray{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:var(--r);font-size:13px;cursor:pointer;font-family:var(--sans);}
+.list-tb{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.list-search{padding:9px 14px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text);background:var(--bg2);outline:none;width:220px;}
+.list-search:focus{border-color:var(--navy);}
+.btn-danger{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:var(--red-dim);color:var(--red);border:1px solid rgba(211,47,47,.25);border-radius:var(--r);font-size:12px;cursor:pointer;font-family:var(--sans);}
+.empty{text-align:center;padding:60px 20px;}
+.empty-ico{font-size:48px;margin-bottom:14px;}
+.empty-t{font-size:15px;font-weight:500;color:var(--text2);margin-bottom:6px;}
+.empty-s{font-size:13px;color:var(--text3);}
+.li{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:10px;box-shadow:var(--shadow);transition:all .2s;}
+.li:hover{border-color:var(--navy);box-shadow:0 4px 16px rgba(27,47,160,.12);}
+.li-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.li-ttl{font-size:14px;font-weight:600;color:var(--text);}
+.li-sub{font-size:12px;color:var(--text2);margin-top:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.li-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.lm{background:var(--bg3);border-radius:7px;padding:8px 10px;}
+.lm-l{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.lm-v{font-size:12px;font-weight:600;color:var(--text);}
+.li-acts{display:flex;gap:6px;margin-top:10px;}
+.bsm{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);border:none;}
+.bsm-v{background:var(--navy-dim);color:var(--navy);}
+.bsm-d{background:var(--red-dim);color:var(--red);}
+.df{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.fsel{padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text);background:var(--bg2);outline:none;cursor:pointer;}
+.fsel:focus{border-color:var(--navy);}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:16px 18px;box-shadow:var(--shadow);}
+.kpi-l{font-size:11px;font-weight:500;color:var(--text3);margin-bottom:6px;}
+.kpi-v{font-size:20px;font-weight:700;color:var(--text);line-height:1;}
+.kpi-s{font-size:11px;color:var(--text2);margin-top:4px;}
+.kpi.navy .kpi-v{color:var(--navy);}
+.ds{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow);}
+.ds-t{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;}
+.exec-table{width:100%;border-collapse:collapse;font-size:12px;min-width:860px;}
+.exec-table thead tr:first-child th{background:linear-gradient(135deg,var(--navy-d),var(--navy));color:#fff;font-size:11px;font-weight:600;padding:10px 8px;text-align:center;border:1px solid rgba(255,255,255,.2);}
+.exec-table thead tr:last-child th{background:var(--bg3);color:var(--text2);font-size:11px;font-weight:600;padding:8px;text-align:center;border-bottom:2px solid var(--border);}
+.exec-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;text-align:right;white-space:nowrap;}
+.exec-table td.tc{text-align:center;}
+.exec-table td.tl{text-align:left;font-weight:500;}
+.exec-table tr:hover td{background:var(--bg3);}
+.exec-table tr.sum-row td{background:var(--navy-dim);font-weight:700;color:var(--navy);border-top:2px solid var(--navy);}
+.exec-table .rate-hi{color:var(--green);font-weight:600;}
+.exec-table .rate-md{color:var(--amber);font-weight:600;}
+.exec-table .rate-lo{color:var(--red);font-weight:600;}
+.exec-table .rate-ov{color:var(--red);font-weight:700;}
+.exec-table tr.stop td{background:rgba(211,47,47,.04);}
+.exec-table tr.done td{background:rgba(0,153,68,.04);}
+.dash-empty{text-align:center;padding:50px;color:var(--text3);font-size:13px;}
+.rtbl{width:100%;border-collapse:collapse;font-size:12px;}
+.rtbl th{padding:7px 8px;font-size:11px;font-weight:500;color:var(--text2);background:var(--bg3);border-bottom:1.5px solid var(--border);text-align:left;white-space:nowrap;}
+.rtbl td{padding:8px 8px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;line-height:1.5;}
+.rtbl tr:last-child td{border-bottom:none;}
+.rtbl tr:hover td{background:var(--bg3);}
+.ptag{display:inline-flex;align-items:center;font-size:10px;padding:1px 6px;border-radius:3px;background:var(--bg3);color:var(--text3);border:1px solid var(--border);}
+.vrow{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.vrow:last-child{border-bottom:none;}
+.vdot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.vtxt{font-size:13px;color:var(--text);line-height:1.6;}
+
+.feedback-box{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:var(--rl);padding:16px 18px;margin-bottom:10px;box-shadow:var(--shadow);}
+.feedback-box .fb-t{font-size:12px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.feedback-box textarea{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:13px;color:var(--text);background:var(--bg3);resize:vertical;min-height:80px;font-family:var(--sans);outline:none;line-height:1.7;}
+.feedback-box textarea:focus{border-color:var(--amber);background:var(--bg2);}
+.feedback-box .fb-save{padding:6px 14px;background:var(--amber);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+.feedback-box .fb-save:hover{opacity:.88;}
+.feedback-box .fb-saved{font-size:11px;color:var(--green);margin-left:8px;display:none;}
+.notes-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow);}
+.notes-panel .np-t{font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.notes-panel .note-item{padding:10px 12px;background:var(--bg3);border-radius:var(--r);margin-bottom:8px;font-size:12px;color:var(--text2);line-height:1.7;border-left:3px solid var(--amber);}
+.notes-panel .note-item .ni-meta{font-size:10px;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;}
+.notes-panel .note-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;}
+.notes-panel .note-del:hover{color:var(--red);}
+
+@media print{.hdr,.tab-bar,.report-acts,.api-box,.upload,.frow,.warn-box,.run-btn,.ld-box,.err-box{display:none!important;}.pane{display:block!important;}body{background:#fff;}.report-hdr{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+@media(max-width:640px){.hdr-in,.main{padding-left:16px;padding-right:16px;}.gl-grid,.kpi-row,.report-meta{grid-template-columns:repeat(2,1fr);}.two-col,.li-meta{grid-template-columns:1fr;}.tab{padding:12px;font-size:12px;}}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="hdr-title">
+      <strong>(주)대광건영 산업안전보건관리비 검토 시스템</strong>
+      <span>산업안전보건법 제72조 · AI 자동 분석 · 안전보건팀</span>
+    </div>
+    <div class="hdr-right" style="display:flex;align-items:center;gap:8px;">
+      <div id="credit-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:5px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.2);cursor:pointer;" onclick="fetchCredit()" title="클릭하여 사용량 확인 / 초기화">
+        💳 <span id="credit-val">잔액 확인 중...</span>
+      </div>
+      <div class="ver-badge">v4.2</div>
+    </div>
+  </div>
+</header>
+<div class="tab-bar">
+  <div class="tab-bar-in">
+    <div class="tab on" onclick="goTab('analyze')">📋 PDF 분석</div>
+    <div class="tab" onclick="goTab('list')">📁 검토 목록 <span class="tab-cnt" id="list-cnt">0</span></div>
+    <div class="tab" onclick="goTab('dashboard')">📊 월별 집행 현황</div>
+    <div class="tab" onclick="goTab('notes')">📝 개선 노트 <span class="tab-cnt" id="notes-cnt">0</span></div>
+  </div>
+</div>
+<main class="main">
+<div class="pane on" id="pane-analyze">
+  <div class="sec-t">사내 적정사용 지침</div>
+  <div class="gl-box">
+    <div class="gl-t">개인보호구 적정사용 기준</div>
+    <div class="gl-grid">
+      <div class="gl-item"><strong>🪖 안전모</strong><p>직원용 <span class="gl-val">19,000원</span> 이하<br>근로자 일반 <span class="gl-val">7,000원</span> 이하<br>보안경 부착형 <span class="gl-val">14,000원</span> 이하<br>지급주기: 1회(채용시)</p></div>
+      <div class="gl-item"><strong>🦺 안전벨트</strong><p>직원용 전체식 <span class="gl-val">85,000원</span> 이하<br>근로자 상체/전체 <span class="gl-val">50,000원</span> 이하<br>지급주기: 1회(채용시)<br>불필요 공종 제외</p></div>
+      <div class="gl-item"><strong>👟 안전화</strong><p>상한금액 <span class="gl-val">80,000원</span> 이하<br>일반·논슬립·방한 포함<br>지급주기: 6개월<br>특수공종 PM 확인 후 추가</p></div>
+    </div>
+  </div>
+
+  <!-- 로컬 실행 시 API 키 입력 -->
+  <div id="local-api-box" style="display:none;background:var(--bg2);border:1px solid var(--border);border-top:3px solid var(--amber);border-radius:var(--rl);padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow);">
+    <div style="font-size:13px;font-weight:600;color:var(--amber);margin-bottom:10px;">🔑 로컬 실행 모드 — API 키 필요</div>
+    <div class="api-row">
+      <input type="password" id="api-key" class="api-inp" placeholder="sk-ant-api03-...">
+      <button class="api-save" onclick="saveKey()">저장</button>
+    </div>
+    <div id="api-st" class="api-st">API 키를 입력해주세요</div>
+    <p class="api-hint">Netlify 배포 시 이 박스는 숨겨집니다 · 발급: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+  </div>
+  <div class="sec-t">내역서 업로드 (페이지 제한 없음 · 자동 분할 처리)</div>
+  <div class="upload" id="uz" onclick="document.getElementById('fi').click()">
+    <div class="upload-ico">📄</div>
+    <div class="upload-t">PDF를 드래그하거나 클릭하여 업로드</div>
+    <div class="upload-s">산업안전보건관리비 내역서 PDF · 100페이지 초과 시 자동 분할 분석</div>
+    <input type="file" id="fi" accept=".pdf">
+  </div>
+  <div class="frow" id="frow">
+    <span style="font-size:26px;">📋</span>
+    <div class="fmeta"><div class="fname" id="fn"></div><div class="fsize" id="fs"></div></div>
+    <button class="frem" id="frem">✕</button>
+  </div>
+  <div class="warn-box" id="warn-box"></div>
+  <button class="run-btn" id="run" disabled onclick="go()">🔍 PDF 분석 시작</button>
+  <div class="ld-box" id="ld">
+    <div class="spin"></div>
+    <div class="ld-steps">
+      <div class="ld-dot on" id="s0"></div><div class="ld-dot" id="s1"></div>
+      <div class="ld-dot" id="s2"></div><div class="ld-dot" id="s3"></div>
+      <div class="ld-dot" id="s4"></div><div class="ld-dot" id="s5"></div>
+    </div>
+    <div class="ld-txt" id="lt">AI가 분석 중입니다...</div>
+    <div class="progress-bar" id="prog-bar"><div class="progress-fill" id="prog-fill"></div></div>
+  </div>
+  <div class="err-box" id="err">
+    <div class="err-head">⚠ <span id="et">분석 오류</span></div>
+    <div class="err-body"><span id="em"></span><code class="err-code" id="ec" style="display:none"></code></div>
+  </div>
+  <div class="report-wrap" id="rw">
+    <div class="sec-t" style="margin-top:24px;">검토 결과서</div>
+    <div class="report-hdr">
+      <div class="report-hdr-top">
+        <div class="report-ttl">산업안전보건관리비 검토 결과서</div>
+        <div class="rv" id="rv-badge"></div>
+      </div>
+      <div class="report-meta">
+        <div class="rmi"><div class="rmi-l">현장명</div><div class="rmi-v" id="rm-proj"></div></div>
+        <div class="rmi"><div class="rmi-l">검토 기간</div><div class="rmi-v" id="rm-period"></div></div>
+        <div class="rmi"><div class="rmi-l">계상 총액</div><div class="rmi-v" id="rm-amt"></div></div>
+        <div class="rmi"><div class="rmi-l">투입률</div><div class="rmi-v" id="rm-rate"></div></div>
+      </div>
+    </div>
+    <div class="report-body">
+      <!-- 즉시 조치 -->
+      <div class="rs" id="action-sec" style="display:none;">
+        <div class="rs-t red"><span class="rs-ico ico-r">🚨</span>즉시 조치 필요 사항</div>
+        <div id="action-wrap"></div>
+      </div>
+      <!-- 공정률 대비 집행률 -->
+      <div class="rs" id="rs-progress-sec">
+        <div class="rs-t"><span class="rs-ico ico-n">📈</span>공정률 대비 집행률 평가</div>
+        <div class="rs-txt" id="rs-progress"></div>
+      </div>
+      <!-- 항목별 사용현황 -->
+      <div class="rs" id="rs-items-sec">
+        <div class="rs-t blue"><span class="rs-ico ico-b">📋</span>항목별 사용금액 현황</div>
+        <div class="rs-txt" id="rs-items-sum"></div>
+      </div>
+      <!-- 목적외 사용 검토 -->
+      <div class="rs">
+        <div class="rs-t red"><span class="rs-ico ico-r">⚠</span>목적외 사용 검토 <small style="font-size:10px;font-weight:400;margin-left:4px;">(산업안전보건법 제72조)</small></div>
+        <div class="badge-row"><span class="bl">검토 결과</span><span class="chip" id="ms-chip"></span><span id="ms-amt" style="font-size:14px;font-weight:700;color:var(--red);"></span></div>
+        <div id="ms-tbl"></div>
+        <div class="legal-box"><div class="legal-t">⚖ 법적 제재 안내</div><div class="legal-d">산업안전보건법 제72조 위반 시 1년 이하 징역 또는 1천만원 이하 벌금. 목적외 사용 금액은 전액 반환 및 고용노동부 과태료 부과 대상.</div></div>
+        <div class="rs-txt" id="ms-op" style="margin-top:10px;font-size:12px;color:var(--text2);"></div>
+      </div>
+      <!-- 사내 지침 준수 -->
+      <div class="rs">
+        <div class="rs-t blue"><span class="rs-ico ico-b">✅</span>사내 지침 준수 여부</div>
+        <div class="badge-row"><span class="bl">종합 준수 현황</span><span class="chip" id="gc-chip"></span></div>
+        <div id="gc-tbl"></div>
+        <div class="rs-txt" id="gc-op" style="margin-top:10px;font-size:12px;color:var(--text2);"></div>
+      </div>
+      <!-- 세금계산서 -->
+      <div class="rs">
+        <div class="rs-t"><span class="rs-ico ico-n">🧾</span>세금계산서 · 거래명세서 일치 여부</div>
+        <div class="two-col" id="tax-cols"></div>
+        <div class="badge-row"><span class="bl">일치 여부</span><span class="chip" id="tax-chip"></span></div>
+        <div id="tax-disc"></div>
+        <div class="rs-txt" id="tax-op" style="font-size:12px;color:var(--text2);"></div>
+      </div>
+      <!-- 개인보호구 -->
+      <div class="rs">
+        <div class="rs-t green"><span class="rs-ico ico-g">🦺</span>개인보호구 지급대장 확인</div>
+        <div class="badge-row"><span class="bl">지급대장 상태</span><span class="chip" id="ppe-chip"></span></div>
+        <div id="ppe-tbl"></div>
+        <div class="rs-txt" id="ppe-op" style="margin-top:10px;font-size:12px;color:var(--text2);"></div>
+      </div>
+      <!-- 종합 검토 의견 (2차 검토 선택 포함) -->
+      <div class="rs">
+        <div class="rs-t"><span class="rs-ico ico-n">💬</span>종합 검토 의견</div>
+        <div id="iss-list"></div>
+      </div>
+      <!-- 개선사항 및 권고사항 -->
+      <div class="rs">
+        <div class="rs-t blue"><span class="rs-ico ico-b">💡</span>개선사항 및 권고사항</div>
+        <div class="rs-txt" id="rs-rec"></div>
+      </div>
+      <!-- 결재란: 검토자만 서명 입력 가능 -->
+      <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--border);display:flex;justify-content:center;">
+        <div style="text-align:center;min-width:180px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">검토자</div>
+          <input type="text" id="sign-input"
+            placeholder="서명 입력"
+            style="width:100%;border:none;border-top:1px solid var(--text3);border-radius:0;
+                   padding:6px 0;font-size:14px;text-align:center;background:transparent;
+                   color:var(--text);outline:none;"
+            onchange="saveSign(this.value)">
+        </div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:12px;" id="rfoot"></div>
+      <!-- 결과서 피드백 -->
+      <div class="feedback-box" style="margin-top:16px;">
+        <div class="fb-t">
+          <span>📝 이 검토 결과에 대한 피드백 (AI 개선용)</span>
+          <button class="fb-save" onclick="saveFeedback()">저장</button>
+        </div>
+        <textarea id="fb-input" placeholder="AI가 잘못 판단한 내용, 누락 항목, 개선 요청사항을 입력해주세요."></textarea>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3);">입력한 피드백은 개선 노트 탭에서 확인할 수 있습니다.</div>
+      </div>
+    </div>
+    <div class="report-acts">
+      <button class="btn-navy" onclick="saveResult()">💾 목록에 저장</button>
+      <button class="btn-outline" onclick="window.print()">🖨 인쇄 / PDF</button>
+      <button class="btn-gray" onclick="newAnal()">↩ 새 분석</button>
+    </div>
+  </div>
+</div>
+<div class="pane" id="pane-list">
+    <div class="list-tb">
+    <input type="text" class="list-search" id="list-q" placeholder="현장명, 기간으로 검색..." oninput="renderList()">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button onclick="exportResults()" style="display:inline-flex;align-items:center;gap:4px;padding:8px 12px;background:var(--green-dim);color:var(--green);border:1px solid rgba(0,153,68,.3);border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">📤 내보내기</button>
+      <label style="display:inline-flex;align-items:center;gap:4px;padding:8px 12px;background:var(--navy-dim);color:var(--navy);border:1px solid var(--border2);border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">📥 가져오기<input type="file" accept=".json" onchange="importResults(event)" style="display:none;"></label>
+      <button class="btn-danger" onclick="clearAll()">🗑 전체 삭제</button>
+    </div>
+  </div>
+  </div>
+  <div id="list-body"></div>
+</div>
+<div class="pane" id="pane-dashboard">
+  <div class="df">
+    <select class="fsel" id="fy" onchange="renderDash()"></select>
+    <select class="fsel" id="fm" onchange="renderDash()">
+      <option value="">전체 월</option>
+      <option value="01">1월</option><option value="02">2월</option><option value="03">3월</option>
+      <option value="04">4월</option><option value="05">5월</option><option value="06">6월</option>
+      <option value="07">7월</option><option value="08">8월</option><option value="09">9월</option>
+      <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+    </select>
+    <button onclick="exportCSV()" style="padding:8px 14px;background:var(--green-dim);color:var(--green);border:1px solid rgba(0,153,68,.3);border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📥 CSV 다운로드</button>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi navy"><div class="kpi-l">현장 수</div><div class="kpi-v" id="k-cnt">0</div><div class="kpi-s">개소</div></div>
+    <div class="kpi navy"><div class="kpi-l">계상 합계</div><div class="kpi-v" id="k-tot" style="font-size:14px;">—</div><div class="kpi-s">원</div></div>
+    <div class="kpi navy"><div class="kpi-l">집행 합계</div><div class="kpi-v" id="k-use" style="font-size:14px;">—</div><div class="kpi-s">원</div></div>
+    <div class="kpi navy"><div class="kpi-l">평균 투입률</div><div class="kpi-v" id="k-rate">—</div><div class="kpi-s">%</div></div>
+  </div>
+  <div class="ds">
+    <div class="ds-t" id="ds-ttl">산업안전보건관리비 집행 현황</div>
+    <div style="overflow-x:auto;" id="exec-wrap"></div>
+    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);"><div style="width:10px;height:10px;border-radius:2px;background:rgba(211,47,47,.08);border:0.5px solid rgba(211,47,47,.25);"></div>초과집행</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);"><div style="width:10px;height:10px;border-radius:2px;background:rgba(0,153,68,.08);border:0.5px solid rgba(0,153,68,.25);"></div>준공현장</div>
+    </div>
+  </div>
+</div>
+<div class="pane" id="pane-notes">
+  <div class="notes-panel">
+    <div class="np-t">📝 AI 검토 개선 노트 <span style="font-size:11px;font-weight:400;color:var(--text3);">— 잘못된 판단, 누락 항목, 개선 요청사항을 기록하세요</span></div>
+    <div style="background:var(--navy-dim);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--navy);margin-bottom:14px;line-height:1.7;">
+      💡 이 노트는 AI 분석 결과의 오류나 개선점을 기록하는 공간입니다.<br>
+      기록된 내용은 향후 시스템 프롬프트 개선에 반영됩니다.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <select id="note-category" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text);background:var(--bg2);outline:none;cursor:pointer;">
+        <option value="세금계산서">🧾 세금계산서 오판</option>
+        <option value="인건비">👷 인건비 분류 오류</option>
+        <option value="단가">💰 단가 기준 오류</option>
+        <option value="협력업체">🏢 협력업체 미구분</option>
+        <option value="목적외사용">⚠ 목적외 사용 오판</option>
+        <option value="기타">📌 기타</option>
+      </select>
+      <input type="text" id="note-site" placeholder="현장명 (선택)" style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text);background:var(--bg2);outline:none;">
+    </div>
+    <textarea id="note-input" placeholder="예시: 세금계산서가 협력업체 내역서 하단에 있었는데 미첨부로 판단함. 개선 요청합니다." style="width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:13px;color:var(--text);background:var(--bg3);resize:vertical;min-height:100px;font-family:var(--sans);outline:none;margin-bottom:10px;line-height:1.7;"></textarea>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button onclick="addNote()" style="padding:9px 20px;background:var(--amber);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);">📝 노트 추가</button>
+      <span id="note-saved" style="font-size:12px;color:var(--green);display:none;">✓ 저장되었습니다</span>
+    </div>
+  </div>
+  <div id="notes-list"></div>
+</div>
+</main>
+<script>
+'use strict';
+var file=null,iv=null,si=0,cur=null;
+var SK='safety_v1';
+var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 중...','사내 지침 대조 중...','세금계산서·거래명세서 확인 중...','개인보호구 지급대장 검토 중...','검토 결과 종합 중...'];
+
+(function init(){
+  // 설정 로드 및 Firebase 초기화
+  getConfig().then(function(){initFirebaseSync();});
+  // 로컬 실행 시 API 키 UI
+  if(window.location.protocol==='file:'){
+    var box=document.getElementById('local-api-box');
+    if(box)box.style.display='block';
+    var storedKey=localStorage.getItem('sk_api')||'';
+    if(storedKey){
+      var inp=document.getElementById('api-key');
+      if(inp)inp.value=storedKey;
+      var st=document.getElementById('api-st');
+      if(st){st.style.color='var(--green)';st.textContent='✓ API 키 저장 완료';}
+    }
+  }
+  // API 키 서버 관리
+  var uz=document.getElementById('uz');
+  uz.addEventListener('dragover',function(e){e.preventDefault();uz.classList.add('drag');});
+  uz.addEventListener('dragleave',function(){uz.classList.remove('drag');});
+  uz.addEventListener('drop',function(e){e.preventDefault();uz.classList.remove('drag');var f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')setFile(f);});
+  document.getElementById('fi').addEventListener('change',function(e){if(e.target.files[0])setFile(e.target.files[0]);});
+  document.getElementById('frem').addEventListener('click',resetFile);
+  // 이벤트 위임: 목록·노트 버튼
+  document.body.addEventListener('click',function(e){
+    var tgt=e.target;
+    var vid=tgt.getAttribute('data-view');
+    if(vid){viewRes(vid);return;}
+    var did=tgt.getAttribute('data-del-res');
+    if(did){delRes(did);return;}
+    var nid=tgt.getAttribute('data-del');
+    if(nid){delNote(nid);return;}
+  });
+  updCnt();initYears();updNotesCnt();updateCreditBadge();
+  // 공유 결과 로드 (Netlify 배포 시)
+  loadSharedResults();
+
+})();
+
+function goTab(t){
+  var tabs=['analyze','list','dashboard','notes'];
+  document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('on',tabs[i]===t);});
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('on');});
+  document.getElementById('pane-'+t).classList.add('on');
+  if(t==='list')renderList();
+  if(t==='dashboard'){initYears();renderDash();}
+  if(t==='notes')renderNotes();
+}
+
+
+// ─── API 크레딧 사용량 추정 ───
+var usageTracker={calls:+(localStorage.getItem('api_calls')||0),tokens:+(localStorage.getItem('api_tokens')||0)};
+
+function updateCreditBadge(){
+  var badge=document.getElementById('credit-badge');
+  var val=document.getElementById('credit-val');
+  if(!badge||!val)return;
+  var isLocal=window.location.protocol==='file:';
+  if(!isLocal){badge.style.display='none';return;}
+  badge.style.display='inline-block';
+  // 분석 1건 평균 약 50원 (30~80원 범위)
+  var estCostKRW=Math.round(usageTracker.calls*55);
+  var estCostUSD=(usageTracker.calls*0.04).toFixed(2);
+  val.textContent='분석 '+usageTracker.calls+'건 · 약 $'+estCostUSD+' 사용';
+}
+
+function fetchCredit(){
+  // 사용량 상세 모달 표시
+  var calls=usageTracker.calls;
+  var estUSD=(calls*0.04).toFixed(2);
+  var estKRW=Math.round(calls*55);
+  alert(
+    '[ API 사용량 현황 ]\n\n' +
+    '총 분석 건수: ' + calls + '건\n' +
+    '예상 사용 비용: 약 $' + estUSD + ' (약 ' + estKRW.toLocaleString() + '원)\n\n' +
+    '* PDF 1건당 평균 약 $0.04 (30~80원) 기준 추정\n' +
+    '* 정확한 잔액은 API 키 발급자가\n' +
+    '  console.anthropic.com에서 직접 확인\n\n' +
+    '[초기화하려면 확인 클릭]'
+  );
+  if(confirm('사용량 카운터를 초기화하시겠습니까?')){
+    usageTracker.calls=0;
+    localStorage.setItem('api_calls','0');
+    updateCreditBadge();
+  }
+}
+
+function trackUsage(){
+  usageTracker.calls++;
+  localStorage.setItem('api_calls',usageTracker.calls);
+  updateCreditBadge();
+}
+
+function saveKey(){
+  var v=document.getElementById('api-key').value.trim();
+  if(!v)return;
+  apiKey=v;localStorage.setItem('sk_api',v);setApiOk(true);
+}
+function setApiOk(ok){
+  var el=document.getElementById('api-st');
+  if(ok){el.className='api-st ok';el.textContent='✓ API 키 설정 완료';}
+  else{el.className='api-st';el.textContent='API 키를 입력해주세요';}
+}
+
+function setFile(f){
+  file=f;
+  document.getElementById('fn').textContent=f.name;
+  document.getElementById('fs').textContent=(f.size/1024/1024).toFixed(2)+' MB';
+  document.getElementById('uz').style.display='none';
+  document.getElementById('frow').style.display='flex';
+  document.getElementById('run').disabled=false;
+  var w=document.getElementById('warn-box');
+  if(f.size/1024/1024>20){w.style.display='block';w.textContent='파일이 크면 분석에 시간이 걸릴 수 있습니다. 100페이지 초과 시 자동으로 나눠서 분석합니다.';}
+  else w.style.display='none';
+}
+function resetFile(){
+  file=null;document.getElementById('fi').value='';
+  document.getElementById('uz').style.display='block';
+  document.getElementById('frow').style.display='none';
+  document.getElementById('run').disabled=true;
+  document.getElementById('warn-box').style.display='none';
+}
+function newAnal(){resetFile();document.getElementById('rw').style.display='none';document.getElementById('err').style.display='none';cur=null;}
+
+function showErr(title,msg,raw){
+  document.getElementById('et').textContent=title;
+  document.getElementById('em').textContent=msg;
+  var ec=document.getElementById('ec');
+  if(raw){ec.style.display='block';ec.textContent=String(raw).substring(0,400);}
+  else ec.style.display='none';
+  document.getElementById('err').style.display='block';
+}
+
+function startLd(){si=0;updLd();iv=setInterval(function(){si=(si+1)%6;updLd();},2200);}
+function updLd(){
+  document.getElementById('lt').textContent=MSGS[si];
+  for(var i=0;i<6;i++)document.getElementById('s'+i).className='ld-dot'+(i===si?' on':'');
+}
+function stopLd(){clearInterval(iv);}
+function setProgress(cur,total){
+  var bar=document.getElementById('prog-bar');
+  var fill=document.getElementById('prog-fill');
+  if(total>1){bar.style.display='block';fill.style.width=Math.round((cur/total)*100)+'%';}
+  else bar.style.display='none';
+}
+
+var SYS="건설현장 산업안전보건관리비 전문 검토 전문가. 산업안전보건법 고용노동부 고시 사내 지침 기준으로 분석.\n[중요] 세금계산서 거래명세서는 PDF 전체(협력업체 안전관리비 사용내역서 하단 첨부 자료 포함)에서 빠짐없이 확인할 것. 특정 페이지에 없어도 다른 섹션에 있을 수 있으므로 미첨부로 단정하지 말 것.\n[협력업체별 구분] 원청 및 협력업체별로 집행 내역을 구분하여 검토. vendor 필드에 반드시 업체명 또는 원청 협력업체명 명시.\n[인건비 분류 기준] 안전관리자 보건관리자 인건비는 보호구 구입비와 별도로 계상되며 안전관리비 적정 사용 범위임. 안전반장 인건비는 안전시설비 항목으로 정산하며 급여명세서 작업일보로 증빙함. 이 항목들은 목적외 사용으로 판단하지 말 것.\n[사내 지침] 안전모: 직원용 19000원, 근로자일반 7000원, 보안경부착형 14000원, 1회채용시 / 안전벨트: 직원용전체식 85000원, 근로자 50000원, 1회채용시, 불필요공종제외 / 안전화: 상한80000원, 6개월\n[목적외 사용 금지] 일반공사자재, 복리후생비, 안전무관사무용품, 일반운영비, 허위중복청구, 격려금포상금회식비, 안전목적불명확한장비임차료\n규칙: 순수 JSON만 출력. 마크다운 없음. 각 문자열 150자 이내. 위반 주의 항목에 반드시 업체명(vendor)과 페이지(page_ref) 명시.\n{\"overall\":\"적정|주의|부적정\",\"summary\":\"핵심요약 3줄이내\",\"progress_review\":\"공정률 대비 집행률 평가 2문장이내\",\"items_summary\":\"금월 항목별 집행금액 요약 3줄이내\",\"metrics\":{\"total_amount\":\"계상액\",\"usage_rate\":\"투입률%\",\"period\":\"YYYY년 MM월\",\"project\":\"현장명\",\"prev_cumulative\":\"전월누계(없으면--)\",\"current_amount\":\"금회금액(없으면--)\",\"subtotal\":\"소계(없으면--)\",\"balance\":\"잔액(없으면--)\",\"process_rate\":\"공정률%(없으면--)\",\"remarks\":\"비고(없으면-)\"},\"quick_verdict\":{\"violations\":[\"위반내용(업체명 페이지 금액 포함)\"],\"warnings\":[\"주의내용(업체명 페이지 포함)\"],\"goods\":[\"양호내용\"]},\"misuse_check\":{\"overall_status\":\"이상없음|의심항목있음|목적외사용확인|확인불가\",\"total_suspicious_amount\":\"합계또는없음\",\"items\":[{\"item_name\":\"항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"amount\":\"금액\",\"reason\":\"사유50자\",\"severity\":\"경미|주의|위반\",\"legal_basis\":\"법령\"}],\"opinion\":\"1문장\"},\"guideline_compliance\":{\"overall_status\":\"준수|일부위반|위반|확인불가\",\"items\":[{\"category\":\"항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"standard\":\"기준\",\"actual\":\"실제\",\"status\":\"준수|위반|주의|확인불가\",\"action\":\"필요조치20자\"}],\"opinion\":\"1문장\"},\"tax_invoice_check\":{\"status\":\"일치|불일치|일부불일치|확인불가\",\"items\":[{\"vendor\":\"업체명\",\"amount\":\"금액\",\"status\":\"일치|불일치|미첨부\",\"page_ref\":\"페이지또는부\",\"note\":\"50자\"}],\"opinion\":\"1문장\"},\"ppe_ledger_check\":{\"status\":\"적정|미흡|누락|확인불가\",\"items\":[{\"ppe_name\":\"명칭\",\"quantity\":\"수량\",\"page_ref\":\"페이지또는부\",\"status\":\"적정|미흡|누락\",\"note\":\"30자\"}],\"opinion\":\"1문장\"},\"action_required\":[{\"priority\":\"긴급|일반\",\"item\":\"조치항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"deadline\":\"즉시|1주이내|1개월이내\"}],\"issues\":[{\"level\":\"위반|주의|양호\",\"content\":\"100자\"}],\"recommendations\":\"150자\"}";
+
+async function splitPdf(f){
+  var buf=await f.arrayBuffer();
+  if(!window.PDFLib){
+    var arr=new Uint8Array(buf);
+    var b64=btoa(Array.from(arr).map(function(b){return String.fromCharCode(b);}).join(''));
+    return [{b64:b64,startPage:1,endPage:'전체'}];
+  }
+  var PDFDocument=PDFLib.PDFDocument;
+  var srcDoc=await PDFDocument.load(buf,{ignoreEncryption:true});
+  var total=srcDoc.getPageCount();
+  var CHUNK=30; // 429 방지를 위해 50페이지 단위
+  if(total<=CHUNK){
+    var arr2=new Uint8Array(buf);
+    var b64_2=btoa(Array.from(arr2).map(function(b){return String.fromCharCode(b);}).join(''));
+    return [{b64:b64_2,startPage:1,endPage:total}];
+  }
+  var chunks=[];
+  for(var start=0;start<total;start+=CHUNK){
+    var end=Math.min(start+CHUNK,total);
+    var newDoc=await PDFDocument.create();
+    var idxs=[];for(var k=start;k<end;k++)idxs.push(k);
+    var pages=await newDoc.copyPages(srcDoc,idxs);
+    pages.forEach(function(p){newDoc.addPage(p);});
+    var bytes=await newDoc.save();
+    var b64c=btoa(Array.from(new Uint8Array(bytes)).map(function(b){return String.fromCharCode(b);}).join(''));
+    chunks.push({b64:b64c,startPage:start+1,endPage:end});
+  }
+  return chunks;
+}
+
+function mergeResults(arr){
+  if(arr.length===1)return arr[0];
+  var ORDER_OV=['부적정','주의','적정','확인불가'];
+  var ORDER_ST=['목적외사용확인','위반','불일치','누락','의심항목있음','일부위반','일부불일치','미흡','주의','이상없음','준수','일치','적정','양호','확인불가'];
+  function worstOv(a,b){var ai=ORDER_OV.indexOf(a),bi=ORDER_OV.indexOf(b);return(ai>=0&&(ai<bi||bi<0))?a:b;}
+  function worstSt(a,b){var ai=ORDER_ST.indexOf(a),bi=ORDER_ST.indexOf(b);return(ai>=0&&(ai<bi||bi<0))?a:b;}
+  var base=arr[0];
+  var merged={
+    overall:arr.reduce(function(a,r){return worstOv(a,r.overall||'적정');},'적정'),
+    summary:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.summary||'');}).join(' '),
+    metrics:base.metrics||{},
+    items_review:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.items_review||'');}).join('\n'),
+    misuse_check:{
+      overall_status:arr.reduce(function(a,r){return worstSt(a,r.misuse_check&&r.misuse_check.overall_status||'확인불가');},'이상없음'),
+      total_suspicious_amount:'전체 청크 합산',
+      items:arr.reduce(function(a,r){return a.concat(r.misuse_check&&r.misuse_check.items||[]);},[]),
+      opinion:arr.map(function(r){return r.misuse_check&&r.misuse_check.opinion||'';}).filter(Boolean).join(' ')
+    },
+    guideline_compliance:{
+      overall_status:arr.reduce(function(a,r){return worstSt(a,r.guideline_compliance&&r.guideline_compliance.overall_status||'확인불가');},'준수'),
+      items:arr.reduce(function(a,r){return a.concat(r.guideline_compliance&&r.guideline_compliance.items||[]);},[]),
+      opinion:arr.map(function(r){return r.guideline_compliance&&r.guideline_compliance.opinion||'';}).filter(Boolean).join(' ')
+    },
+    tax_invoice_check:{
+      status:arr.reduce(function(a,r){return worstSt(a,r.tax_invoice_check&&r.tax_invoice_check.status||'확인불가');},'일치'),
+      tax_invoice_detail:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.tax_invoice_detail||'';}).filter(Boolean).join(' / '),
+      statement_detail:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.statement_detail||'';}).filter(Boolean).join(' / '),
+      discrepancy:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.discrepancy||'';}).filter(function(v){return v&&v!=='없음';}).join(' / ')||'없음',
+      opinion:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.opinion||'';}).filter(Boolean).join(' ')
+    },
+    ppe_ledger_check:{
+      status:arr.reduce(function(a,r){return worstSt(a,r.ppe_ledger_check&&r.ppe_ledger_check.status||'확인불가');},'적정'),
+      items:arr.reduce(function(a,r){return a.concat(r.ppe_ledger_check&&r.ppe_ledger_check.items||[]);},[]),
+      opinion:arr.map(function(r){return r.ppe_ledger_check&&r.ppe_ledger_check.opinion||'';}).filter(Boolean).join(' ')
+    },
+    issues:arr.reduce(function(a,r){return a.concat(r.issues||[]);},[]),
+    recommendations:arr.map(function(r){return r.recommendations||'';}).filter(Boolean).join(' ')
+  };
+  var seen={};
+  merged.issues=merged.issues.filter(function(iss){var k=iss.level+iss.content;if(seen[k])return false;seen[k]=true;return true;});
+  return merged;
+}
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+// 설정 캐시 (세션 1회만 서버에서 가져옴)
+var _cfg=null;
+async function getConfig(){
+  if(_cfg)return _cfg;
+  if(window.location.protocol==='file:'){
+    _cfg={anthropicKey:localStorage.getItem('sk_api')||'',firebase:null};
+    return _cfg;
+  }
+  try{
+    var r=await fetch('/api/config');
+    _cfg=await r.json();
+    // Firebase 초기화
+    if(_cfg.firebase&&_cfg.firebase.projectId&&typeof firebase!=='undefined'&&!firebase.apps.length){
+      firebase.initializeApp(_cfg.firebase);
+      window._db=firebase.firestore();
+    }
+    return _cfg;
+  }catch(e){return {anthropicKey:'',firebase:null};}
+}
+
+async function callApi(b64,userMsg){
+  var MAX_RETRY=4;var delay=15000;
+  var cfg=await getConfig();
+  var apiKey=cfg.anthropicKey||'';
+  if(!apiKey){
+    stopLd();document.getElementById('ld').style.display='none';
+    showErr(
+      window.location.protocol==='file:'?'API 키 필요':'서버 오류',
+      window.location.protocol==='file:'?'로컬 실행 시 API 키를 입력해주세요.':'ANTHROPIC_API_KEY 환경변수를 확인해주세요.',null);
+    document.getElementById('run').disabled=false;return null;
+  }
+  for(var attempt=1;attempt<=MAX_RETRY;attempt++){
+    try{
+      var resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key':apiKey,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body:JSON.stringify({
+          model:'claude-haiku-4-5',
+          max_tokens:3000,
+          system:SYS,
+          messages:[{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+            {type:'text',text:userMsg}
+          ]}]
+        })
+      });
+      if(resp.status===429){
+        if(attempt===MAX_RETRY)return resp;
+        var w=Math.round(delay/1000);
+        document.getElementById('lt').textContent='요청 한도 초과 — '+w+'초 후 재시도 ('+attempt+'/'+MAX_RETRY+')...';
+        await sleep(delay);delay=delay*2;continue;
+      }
+      return resp;
+    }catch(e){if(attempt===MAX_RETRY)throw e;await sleep(5000);}
+  }
+}
+
+async function go(){
+  if(!file)return;
+  // API 키: 로컬=직접입력, Netlify=서버관리
+  document.getElementById('run').disabled=true;
+  document.getElementById('rw').style.display='none';
+  document.getElementById('err').style.display='none';
+  document.getElementById('ld').style.display='block';
+  document.getElementById('prog-bar').style.display='none';
+  startLd();
+  try{
+    document.getElementById('lt').textContent='PDF 분석 준비 중...';
+    var chunks=await splitPdf(file);
+    if(!chunks||!chunks.length){
+      stopLd();document.getElementById('ld').style.display='none';
+      showErr('PDF 오류','PDF 파일을 읽을 수 없습니다.',null);
+      document.getElementById('run').disabled=false;return;
+    }
+    var total=chunks.length;
+    var results=[];
+    var doneCount=0;
+    document.getElementById('lt').textContent=total>1?'총 '+total+'개 청크 동시 분석 중...':'AI 분석 중...';
+    var chunkPromises=chunks.map(function(chunk,ci){
+      var userMsg=total>1
+        ?('이 PDF는 원본의 '+chunk.startPage+'~'+chunk.endPage+'페이지 부분입니다. 산업안전보건관리비 내용을 검토하고 JSON만 출력하세요.')
+        :'산업안전보건관리비 PDF 검토. 목적외 사용 최우선. JSON만 출력.';
+      return callApi(chunk.b64,userMsg).then(function(resp){
+        if(!resp)return null;
+        return resp.text().then(function(respText){
+          doneCount++;
+          if(total>1)document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+total+'청크 완료)';
+          try{
+            var data=JSON.parse(respText);
+            if(!resp.ok)return null;
+            var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
+            if(!raw)return null;
+            var clean=raw.replace(/```json|```/g,'').trim();
+            var m=clean.match(/\{[\s\S]*\}/);
+            return m?JSON.parse(m[0]):null;
+          }catch(e){return null;}
+        });
+      }).catch(function(){return null;});
+    });
+    var chunkResults=await Promise.all(chunkPromises);
+    results=chunkResults.filter(function(r){return r!==null;})
+    setProgress(total,total);
+    if(!results.length){
+      stopLd();document.getElementById('ld').style.display='none';
+      showErr('분석 실패','유효한 결과를 얻지 못했습니다. 다시 시도해주세요.',null);
+      document.getElementById('run').disabled=false;return;
+    }
+    document.getElementById('lt').textContent='결과 종합 중...';
+    var d=mergeResults(results);
+    cur=Object.assign({},d,{analyzedAt:new Date().toISOString(),fileName:file.name,totalChunks:total});
+    trackUsage();
+    stopLd();document.getElementById('ld').style.display='none';
+    renderReport(d);
+  }catch(e){
+    stopLd();document.getElementById('ld').style.display='none';
+    var msg=e.message||'알 수 없는 오류';
+    if(msg.indexOf('fetch')>=0||msg.indexOf('Failed')>=0)msg='네트워크 오류: 인터넷 연결 확인 또는 Chrome/Edge 사용';
+    showErr('오류',msg,null);
+  }
+  document.getElementById('run').disabled=false;
+}
+
+function xe(s){if(!s)return'—';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function cc(s){
+  var ok=['일치','적정','양호','준수','이상없음'];
+  var warn=['일부불일치','주의','미흡','일부위반','의심항목있음','경미'];
+  var bad=['불일치','부적정','누락','위반','목적외사용확인'];
+  if(ok.indexOf(s)>=0)return'ck';
+  if(warn.indexOf(s)>=0)return'cw';
+  if(bad.indexOf(s)>=0)return'ce';
+  return'cn';
+}
+function vc(v){return v==='적정'?'rv-ok':v==='주의'?'rv-warn':'rv-bad';}
+function pNum(s){if(!s||s==='—'||s==='--'||s==='확인불가')return null;var n=+String(s).replace(/[^0-9.-]/g,'');return isNaN(n)?null:n;}
+function fNum(n){if(n===null||n===undefined)return'—';return Math.round(n).toLocaleString('ko-KR');}
+function rateCls(r){if(r>100)return'rate-ov';if(r>=70)return'rate-hi';if(r>=40)return'rate-md';return'rate-lo';}
+
+function renderReport(d){
+  var m=d.metrics||{};
+  var vb=document.getElementById('rv-badge');vb.textContent='종합 판정: '+(d.overall||'—');vb.className='rv '+vc(d.overall);
+  document.getElementById('rm-proj').textContent=m.project||'—';
+  document.getElementById('rm-period').textContent=m.period||'—';
+  document.getElementById('rm-amt').textContent=m.total_amount||'—';
+  document.getElementById('rm-rate').textContent=m.usage_rate||'—';
+
+  // 빠른 판정 요약
+  var qv=d.quick_verdict||{};
+  var sumHtml='';
+  if(qv.violations&&qv.violations.length){
+    qv.violations.forEach(function(v){sumHtml+='<div class="vrow"><div class="vdot de"></div><div class="vtxt"><strong style="color:var(--red);">위반</strong> — '+xe(v)+'</div></div>';});
+  }
+  if(qv.warnings&&qv.warnings.length){
+    qv.warnings.forEach(function(v){sumHtml+='<div class="vrow"><div class="vdot dw"></div><div class="vtxt"><strong style="color:var(--amber);">주의</strong> — '+xe(v)+'</div></div>';});
+  }
+  if(qv.goods&&qv.goods.length){
+    qv.goods.forEach(function(v){sumHtml+='<div class="vrow"><div class="vdot do"></div><div class="vtxt"><strong style="color:var(--green);">양호</strong> — '+xe(v)+'</div></div>';});
+  }
+  // 공정률 대비 집행률
+  var progEl = document.getElementById('rs-progress');
+  if(progEl){
+    if(d.progress_review){
+      progEl.innerHTML = xe(d.progress_review);
+      document.getElementById('rs-progress-sec').style.display='';
+    } else {
+      // metrics에서 직접 계산
+      var m2=d.metrics||{};
+      var ur=parseFloat((m2.usage_rate||'').replace('%',''));
+      var pr=parseFloat((m2.process_rate||'--').replace('%',''));
+      if(!isNaN(ur)&&!isNaN(pr)){
+        var diff=(ur-pr).toFixed(1);
+        var eval2=diff>10?'공정 대비 과다 집행':diff<-10?'공정 대비 집행 부족':'공정 대비 적정 집행';
+        progEl.innerHTML='공정률 '+pr+'% 대비 집행률 '+ur+'% (차이: '+(diff>0?'+':'')+diff+'%). '+eval2+'.';
+      } else {
+        document.getElementById('rs-progress-sec').style.display='none';
+      }
+    }
+  }
+  // 항목별 사용금액 현황
+  var itemsEl = document.getElementById('rs-items-sum');
+  if(itemsEl){
+    if(d.items_summary){
+      itemsEl.innerHTML = xe(d.items_summary);
+      document.getElementById('rs-items-sec').style.display='';
+    } else {
+      document.getElementById('rs-items-sec').style.display='none';
+    }
+  }
+
+  // 즉시 조치 사항
+  var acts=d.action_required||[];
+  if(acts.length){
+    var ah='<div style="overflow-x:auto;"><table class="rtbl"><thead><tr><th>우선순위</th><th>조치 항목</th><th>업체명</th><th>페이지</th><th>기한</th></tr></thead><tbody>';
+    acts.forEach(function(a){
+      var pc=a.priority==='긴급'?'ce':'cw';
+      ah+='<tr><td><span class="chip '+pc+'">'+xe(a.priority)+'</span></td><td style="font-weight:500;">'+xe(a.item)+'</td><td class="mu">'+xe(a.vendor||'—')+'</td><td class="mu"><span class="ptag">'+xe(a.page_ref||'—')+'</span></td><td class="mu">'+xe(a.deadline||'—')+'</td></tr>';
+    });
+    ah+='</tbody></table></div>';
+    document.getElementById('action-wrap').innerHTML=ah;
+    document.getElementById('action-sec').style.display='block';
+  }else{
+    document.getElementById('action-sec').style.display='none';
+  }
+
+  // 목적외 사용
+  if(d.misuse_check){
+    var mc=d.misuse_check;
+    var ms=document.getElementById('ms-chip');ms.textContent=mc.overall_status||'—';ms.className='chip '+cc(mc.overall_status);
+    document.getElementById('ms-amt').textContent=(mc.total_suspicious_amount&&mc.total_suspicious_amount!=='없음')?'의심금액: '+mc.total_suspicious_amount:'';
+    var mt='';
+    if(mc.overall_status==='이상없음'){mt='<div class="ok-banner">✓ 목적외 사용 의심 항목이 발견되지 않았습니다.</div>';}
+    else if(mc.items&&mc.items.length){
+      mt='<div style="overflow-x:auto;"><table class="rtbl"><thead><tr><th>항목</th><th>업체명</th><th>페이지</th><th>금액</th><th>심각도</th><th>사유</th><th>근거</th></tr></thead><tbody>';
+      mc.items.forEach(function(it){
+        mt+='<tr><td style="font-weight:500;">'+xe(it.item_name)+'</td><td class="mu">'+xe(it.vendor||'—')+'</td><td class="mu"><span class="ptag">'+xe(it.page_ref||'—')+'</span></td><td class="mu">'+xe(it.amount)+'</td><td><span class="chip '+cc(it.severity)+'">'+xe(it.severity)+'</span></td><td class="mu">'+xe(it.reason)+'</td><td class="mu">'+xe(it.legal_basis)+'</td></tr>';
+      });
+      mt+='</tbody></table></div>';
+    }
+    document.getElementById('ms-tbl').innerHTML=mt;
+    document.getElementById('ms-op').innerHTML=xe(mc.opinion);
+  }
+
+  // 사내 지침 준수
+  if(d.guideline_compliance){
+    var gc=d.guideline_compliance;
+    var gcs=document.getElementById('gc-chip');gcs.textContent=gc.overall_status||'—';gcs.className='chip '+cc(gc.overall_status);
+    var gt='';
+    if(gc.items&&gc.items.length){
+      gt='<div style="overflow-x:auto;"><table class="rtbl"><thead><tr><th>항목</th><th>업체명</th><th>페이지</th><th>기준</th><th>실제 내용</th><th>판정</th><th>필요 조치</th></tr></thead><tbody>';
+      gc.items.forEach(function(it){
+        gt+='<tr><td style="font-weight:500;">'+xe(it.category)+'</td><td class="mu">'+xe(it.vendor||'—')+'</td><td class="mu"><span class="ptag">'+xe(it.page_ref||'—')+'</span></td><td class="mu">'+xe(it.standard)+'</td><td>'+xe(it.actual)+'</td><td><span class="chip '+cc(it.status)+'">'+xe(it.status)+'</span></td><td class="mu">'+xe(it.action||'—')+'</td></tr>';
+      });
+      gt+='</tbody></table></div>';
+    }
+    document.getElementById('gc-tbl').innerHTML=gt;
+    document.getElementById('gc-op').innerHTML=xe(gc.opinion);
+  }
+
+  // 세금계산서
+  if(d.tax_invoice_check){
+    var tc=d.tax_invoice_check;
+    var tcs=document.getElementById('tax-chip');tcs.textContent=tc.status||'—';tcs.className='chip '+cc(tc.status);
+    var taxItems=tc.items||[];
+    var th2='';
+    if(taxItems.length){
+      th2='<div style="overflow-x:auto;"><table class="rtbl"><thead><tr><th>업체명</th><th>금액</th><th>페이지</th><th>상태</th><th>내용</th></tr></thead><tbody>';
+      taxItems.forEach(function(it){
+        th2+='<tr><td style="font-weight:500;">'+xe(it.vendor||'—')+'</td><td class="mu">'+xe(it.amount||'—')+'</td><td class="mu"><span class="ptag">'+xe(it.page_ref||'—')+'</span></td><td><span class="chip '+cc(it.status)+'">'+xe(it.status)+'</span></td><td class="mu">'+xe(it.note||'—')+'</td></tr>';
+      });
+      th2+='</tbody></table></div>';
+    }else{
+      th2='<div class="ib-v" style="font-size:13px;">'+xe(tc.tax_invoice_detail||'—')+'</div>';
+    }
+    document.getElementById('tax-cols').innerHTML=th2;
+    document.getElementById('tax-disc').innerHTML=(tc.discrepancy&&tc.discrepancy!=='없음')?'<div class="disc-box">⚠ '+xe(tc.discrepancy)+'</div>':'';
+    document.getElementById('tax-op').innerHTML=xe(tc.opinion);
+  }
+
+  // 개인보호구
+  if(d.ppe_ledger_check){
+    var pc=d.ppe_ledger_check;
+    var pcs=document.getElementById('ppe-chip');pcs.textContent=pc.status||'—';pcs.className='chip '+cc(pc.status);
+    var pt='';
+    if(pc.items&&pc.items.length){
+      pt='<div style="overflow-x:auto;"><table class="rtbl"><thead><tr><th>보호구</th><th>수량</th><th>페이지</th><th>상태</th><th>내용</th></tr></thead><tbody>';
+      pc.items.forEach(function(it){
+        pt+='<tr><td style="font-weight:500;">'+xe(it.ppe_name)+'</td><td class="mu">'+xe(it.quantity)+'</td><td class="mu"><span class="ptag">'+xe(it.page_ref||'—')+'</span></td><td><span class="chip '+cc(it.status)+'">'+xe(it.status)+'</span></td><td class="mu">'+xe(it.note)+'</td></tr>';
+      });
+      pt+='</tbody></table></div>';
+    }
+    document.getElementById('ppe-tbl').innerHTML=pt;
+    document.getElementById('ppe-op').innerHTML=xe(pc.opinion);
+  }
+
+  // 종합 의견
+  if(d.issues&&d.issues.length){
+    var issEl=document.getElementById('iss-list');
+    issEl.innerHTML='';
+    d.issues.forEach(function(iss,idx){
+      var needReview=(iss.level==='위반'||iss.level==='주의');
+      var row=document.createElement('div');
+      row.className='iss-row';
+      // 점
+      var dot=document.createElement('div');
+      dot.className='vdot '+(iss.level==='위반'?'de':iss.level==='주의'?'dw':'do');
+      dot.style.cssText='width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0;';
+      // 텍스트 영역
+      var txt=document.createElement('div');
+      txt.className='vtxt';
+      txt.style.flex='1';
+      var strong=document.createElement('strong');
+      strong.textContent=iss.level;
+      txt.appendChild(strong);
+      txt.appendChild(document.createTextNode(' — '+xe(iss.content)));
+      // 2차 검토 셀렉트 (주의·위반만)
+      if(needReview){
+        var savedKey='review2_'+(cur&&cur.id?cur.id:'tmp')+'_'+idx;
+        var savedVal=localStorage.getItem(savedKey)||'';
+        var selWrap=document.createElement('div');
+        selWrap.style.marginTop='6px';
+        var selLabel=document.createElement('span');
+        selLabel.style.cssText='font-size:11px;color:var(--text2);margin-right:6px;';
+        selLabel.textContent='2차 검토 결과:';
+        var sel=document.createElement('select');
+        sel.style.cssText='font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg2);color:var(--text);cursor:pointer;';
+        sel.setAttribute('data-key', savedKey);
+        [['','— 선택 —'],['이상없음','✅ 이상없음'],['주의','⚠ 주의'],['즉시 개선 필요','🚨 즉시 개선 필요']].forEach(function(opt){
+          var o=document.createElement('option');
+          o.value=opt[0];o.textContent=opt[1];
+          if(savedVal===opt[0])o.selected=true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener('change',function(){saveReview2(this);});
+        // 선택값 표시 레이블
+        var valLabel=document.createElement('span');
+        valLabel.style.cssText='margin-left:8px;font-size:11px;font-weight:500;';
+        if(savedVal){
+          valLabel.style.color=savedVal==='이상없음'?'var(--green)':savedVal==='주의'?'var(--amber)':'var(--red)';
+          valLabel.textContent=savedVal;
+        }
+        sel.setAttribute('data-label-id','rv-label-'+idx);
+        valLabel.id='rv-label-'+idx;
+        selWrap.appendChild(selLabel);
+        selWrap.appendChild(sel);
+        selWrap.appendChild(valLabel);
+        txt.appendChild(selWrap);
+      }
+      row.appendChild(dot);
+      row.appendChild(txt);
+      issEl.appendChild(row);
+    });
+  }
+
+  document.getElementById('rs-rec').innerHTML = xe(d.recommendations);
+  document.getElementById('rfoot').textContent='검토일자: '+new Date().toLocaleDateString('ko-KR');
+  document.getElementById('rw').style.display='block';
+  document.getElementById('rw').scrollIntoView({behavior:'smooth',block:'start'});
+  loadSign();
+}
+
+var isLocal=(window.location.protocol==='file:');
+var _localResults=[];
+
+function getRes(){
+  if(window._db)return _localResults;
+  try{return JSON.parse(localStorage.getItem(SK)||'[]');}catch(e){return[];}
+}
+function putRes(a){
+  _localResults=a;
+  if(!window._db)localStorage.setItem(SK,JSON.stringify(a));
+}
+function updCnt(){document.getElementById('list-cnt').textContent=getRes().length;}
+
+// Firebase 실시간 동기화
+function initFirebaseSync(){
+  if(!window._db)return;
+  window._db.collection('results').doc('shared').onSnapshot(function(doc){
+    if(doc.exists){
+      _localResults=doc.data().items||[];
+    }else{
+      _localResults=[];
+    }
+    updCnt();initYears();
+    if(document.getElementById('pane-list').classList.contains('on'))renderList();
+    if(document.getElementById('pane-dashboard').classList.contains('on'))renderDash();
+  },function(err){console.warn('Firebase sync error:',err);});
+}
+
+async function fbSave(results){
+  if(!window._db)return false;
+  try{
+    await window._db.collection('results').doc('shared').set({items:results,updatedAt:new Date().toISOString()});
+    return true;
+  }catch(e){console.error('Firebase save error:',e);return false;}
+}
+
+function loadSharedResults(){
+  if(!window._db){updCnt();return;}
+  // onSnapshot이 자동 처리
+}
+
+function saveSign(val){
+  var key='sign_'+(cur&&cur.id?cur.id:'tmp');
+  localStorage.setItem(key,val);
+}
+
+function loadSign(){
+  var key='sign_'+(cur&&cur.id?cur.id:'tmp');
+  var v=localStorage.getItem(key)||'';
+  var el=document.getElementById('sign-input');
+  if(el)el.value=v;
+}
+
+function saveReview2(sel){
+  localStorage.setItem(sel.getAttribute('data-key'),sel.value);
+  var lid=sel.getAttribute('data-label-id');
+  var lb=lid?document.getElementById(lid):sel.nextSibling;
+  if(lb){
+    lb.textContent=sel.value;
+    lb.style.color=sel.value==='이상없음'?'var(--green)':sel.value==='주의'?'var(--amber)':'var(--red)';
+  }
+}
+
+
+// ═══ 개선 노트 시스템 ═══
+var NOTES_KEY = 'safety_notes_v1';
+
+function getNotes(){try{return JSON.parse(localStorage.getItem(NOTES_KEY)||'[]');}catch(e){return[];}}
+function putNotes(a){localStorage.setItem(NOTES_KEY,JSON.stringify(a));}
+function updNotesCnt(){document.getElementById('notes-cnt').textContent=getNotes().length;}
+
+function addNote(){
+  var cat=document.getElementById('note-category').value;
+  var site=document.getElementById('note-site').value.trim();
+  var txt=document.getElementById('note-input').value.trim();
+  if(!txt){alert('내용을 입력해주세요.');return;}
+  var notes=getNotes();
+  notes.unshift({
+    id:'n_'+Date.now(),
+    category:cat,
+    site:site||'—',
+    content:txt,
+    createdAt:new Date().toISOString()
+  });
+  putNotes(notes);
+  document.getElementById('note-input').value='';
+  document.getElementById('note-site').value='';
+  var sv=document.getElementById('note-saved');
+  sv.style.display='inline';
+  setTimeout(function(){sv.style.display='none';},2000);
+  updNotesCnt();
+  renderNotes();
+}
+
+function delNote(id){
+  if(!confirm('이 노트를 삭제하시겠습니까?'))return;
+  putNotes(getNotes().filter(function(n){return n.id!==id;}));
+  updNotesCnt();
+  renderNotes();
+}
+
+var CAT_ICONS={
+  '세금계산서':'🧾','인건비':'👷','단가':'💰','협력업체':'🏢','목적외사용':'⚠','기타':'📌'
+};
+
+function renderNotes(){
+  var notes=getNotes();
+  updNotesCnt();
+  var el=document.getElementById('notes-list');
+  if(!el)return;
+  if(!notes.length){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px;">📝 아직 기록된 개선 노트가 없습니다.</div>';
+    return;
+  }
+  // 카테고리별 그룹
+  var groups={};
+  notes.forEach(function(n){
+    if(!groups[n.category])groups[n.category]=[];
+    groups[n.category].push(n);
+  });
+  var html='';
+  Object.keys(groups).forEach(function(cat){
+    html+='<div class="notes-panel">';
+    html+='<div class="np-t">'+(CAT_ICONS[cat]||'📌')+' '+cat+' <span style="font-size:12px;font-weight:400;color:var(--text3);">('+groups[cat].length+'건)</span></div>';
+    groups[cat].forEach(function(n){
+      var dt=new Date(n.createdAt).toLocaleDateString('ko-KR');
+      var siteLabel=n.site!=='—'?'['+n.site+'] ':'';
+      html+='<div class="note-item" data-nid="'+n.id+'">'
+        +'<div class="ni-meta"><span>'+siteLabel+dt+'</span>'
+        +'<button class="note-del" data-del="'+n.id+'">✕ 삭제</button></div>'
+        +xe(n.content)
+        +'</div>';
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+function saveFeedback(){
+  var txt=document.getElementById('fb-input').value.trim();
+  if(!txt)return;
+  var site=(cur&&cur.metrics&&cur.metrics.project)||'';
+  var period=(cur&&cur.metrics&&cur.metrics.period)||'';
+  var notes=getNotes();
+  notes.unshift({
+    id:'n_'+Date.now(),
+    category:'기타',
+    site:site+(period?' ('+period+')':''),
+    content:'[결과서 피드백] '+txt,
+    createdAt:new Date().toISOString()
+  });
+  putNotes(notes);
+  document.getElementById('fb-input').value='';
+  updNotesCnt();
+  alert('✅ 피드백이 저장되었습니다. 개선 노트 탭에서 확인하세요.');
+}
+
+async function saveResult(){
+  if(!cur){alert('저장할 결과가 없습니다.');return;}
+  var result=Object.assign({id:'r_'+Date.now()},cur);
+  var rs=getRes().filter(function(r){return r.id!==result.id;});
+  rs.unshift(result);rs=rs.slice(0,200);
+  if(window._db){
+    var ok=await fbSave(rs);
+    if(ok){alert('✅ 저장 완료! 모든 기기에서 자동 동기화됩니다.');}
+    else{putRes(rs);updCnt();initYears();alert('✅ 로컬 저장 완료 (Firebase 연결 확인 필요)');}
+  }else{
+    putRes(rs);updCnt();initYears();
+    alert('✅ 저장되었습니다!');
+  }
+}
+function renderList(){
+  var rs=getRes();
+  var q=(document.getElementById('list-q').value||'').toLowerCase();
+  var fl=q?rs.filter(function(r){return (r.metrics&&r.metrics.project||'').toLowerCase().indexOf(q)>=0||(r.metrics&&r.metrics.period||'').toLowerCase().indexOf(q)>=0||(r.fileName||'').toLowerCase().indexOf(q)>=0;}):rs;
+  var el=document.getElementById('list-body');
+  if(!fl.length){
+    el.innerHTML='<div class="empty"><div class="empty-ico">📂</div><div class="empty-t">'+(q?'검색 결과가 없습니다':'저장된 검토 결과가 없습니다')+'</div><div class="empty-s">'+(q?'다른 검색어를 입력해보세요':'PDF 분석 후 저장 버튼을 눌러주세요')+'</div></div>';
+    return;
+  }
+  el.innerHTML=fl.map(function(r){
+    var m=r.metrics||{};var ov=r.overall||'—';
+    var mis=(r.misuse_check&&r.misuse_check.overall_status)||'확인불가';
+    var gui=(r.guideline_compliance&&r.guideline_compliance.overall_status)||'확인불가';
+    var dt=r.analyzedAt?new Date(r.analyzedAt).toLocaleDateString('ko-KR'):'—';
+    return '<div class="li"><div class="li-top"><div><div class="li-ttl">'+xe(m.project||'현장명 미확인')+'</div><div class="li-sub"><span>'+xe(m.period||'기간 미확인')+'</span><span>·</span><span>'+dt+' 검토</span></div></div><span class="chip '+cc(ov)+'" style="font-size:12px;">'+ov+'</span></div>'
+      +'<div class="li-meta"><div class="lm"><div class="lm-l">계상 총액</div><div class="lm-v">'+xe(m.total_amount)+'</div></div><div class="lm"><div class="lm-l">투입률</div><div class="lm-v">'+xe(m.usage_rate)+'</div></div><div class="lm"><div class="lm-l">목적외 사용</div><div class="lm-v"><span class="chip '+cc(mis)+'" style="font-size:11px;">'+mis+'</span></div></div><div class="lm"><div class="lm-l">지침 준수</div><div class="lm-v"><span class="chip '+cc(gui)+'" style="font-size:11px;">'+gui+'</span></div></div></div>'
+      +'<div class="li-acts"><button class="bsm bsm-v" data-view="'+r.id+'">📋 결과 보기</button><button class="bsm bsm-d" data-del-res="'+r.id+'">🗑 삭제</button></div></div>';
+  }).join('');
+}
+function viewRes(id){var r=getRes().filter(function(x){return x.id===id;})[0];if(!r)return;cur=r;renderReport(r);goTab('analyze');}
+async function delRes(id){
+  if(!confirm('이 검토 결과를 삭제하시겠습니까?'))return;
+  var rs=getRes().filter(function(r){return r.id!==id;});
+  if(window._db){await fbSave(rs);}
+  else{putRes(rs);updCnt();renderList();initYears();}
+}
+async function clearAll(){
+  if(!confirm('저장된 검토 결과를 모두 삭제하시겠습니까?\n모든 기기에서 삭제됩니다.'))return;
+  if(window._db){await fbSave([]);}
+  else{localStorage.removeItem(SK);updCnt();renderList();renderDash();}
+}
+
+function initYears(){
+  var rs=getRes();
+  var yrs=[];
+  rs.forEach(function(r){var p=r.metrics&&r.metrics.period||'';var m=p.match(/(\d{4})/);var y=m?+m[1]:(r.analyzedAt?new Date(r.analyzedAt).getFullYear():null);if(y&&yrs.indexOf(y)<0)yrs.push(y);});
+  yrs.sort(function(a,b){return b-a;});
+  if(!yrs.length)yrs.push(new Date().getFullYear());
+  var fy=document.getElementById('fy');var curY=fy.value;
+  fy.innerHTML=yrs.map(function(y){return'<option value="'+y+'">'+y+'년</option>';}).join('');
+  if(curY&&yrs.indexOf(+curY)>=0)fy.value=curY;
+}
+function renderDash(){
+  var rs=getRes();
+  var yr=document.getElementById('fy').value||String(new Date().getFullYear());
+  var mo=document.getElementById('fm').value;
+  var fl=rs.filter(function(r){return(r.metrics&&r.metrics.period||'').indexOf(yr)>=0;});
+  if(mo){var mm=parseInt(mo,10);fl=fl.filter(function(r){var p=r.metrics&&r.metrics.period||'';var m=p.match(/(\d{1,2})월/);return m?parseInt(m[1],10)===mm:false;});}
+  var lbl=mo?(yr+'년 '+parseInt(mo,10)+'월'):yr+'년 전체';
+  document.getElementById('ds-ttl').textContent='산업안전보건관리비 집행 현황 ('+lbl+')';
+  var wrap=document.getElementById('exec-wrap');
+  if(!fl.length){
+    document.getElementById('k-cnt').textContent='0';document.getElementById('k-tot').textContent='—';document.getElementById('k-use').textContent='—';document.getElementById('k-rate').textContent='—';
+    wrap.innerHTML='<div class="dash-empty">📊 데이터가 없습니다.<br>PDF 분석 후 "목록에 저장"하면 표시됩니다.</div>';return;
+  }
+  var sumT=0,sumS=0,rates=[];
+  fl.forEach(function(r){var m=r.metrics||{};var t=pNum(m.total_amount),s=pNum(m.subtotal)||pNum(m.current_amount);var rt=parseFloat((m.usage_rate||'').replace('%',''));if(t)sumT+=t;if(s)sumS+=s;if(!isNaN(rt))rates.push(rt);});
+  var avg=rates.length?(rates.reduce(function(a,b){return a+b;},0)/rates.length).toFixed(2):'—';
+  document.getElementById('k-cnt').textContent=fl.length;document.getElementById('k-tot').textContent=fNum(sumT)||'—';document.getElementById('k-use').textContent=fNum(sumS)||'—';document.getElementById('k-rate').textContent=avg!=='—'?avg+'%':'—';
+  var rows='';
+  fl.forEach(function(r,i){
+    var m=r.metrics||{};var ov=r.overall||'—';
+    var rt=parseFloat((m.usage_rate||'').replace('%',''));var rcls=isNaN(rt)?'':rateCls(rt);
+    var rem=m.remarks||'-';var rowCls=(rem.indexOf('공사중지')>=0||rem.indexOf('중지')>=0)?'stop':(rem.indexOf('준공')>=0||rem.indexOf('완공')>=0)?'done':'';
+    var bal=pNum(m.balance);
+    rows+='<tr class="'+rowCls+'">'
+      +'<td class="tc" style="color:var(--text2);">'+(i+1)+'</td>'
+      +'<td class="tl">'+xe(m.project||'미확인')+'</td>'
+      +'<td>'+fNum(pNum(m.total_amount))+'</td>'
+      +'<td>'+editCell(r.id,'prev_cumulative',m.prev_cumulative)+'</td>'
+      +'<td>'+editCell(r.id,'current_amount',m.current_amount)+'</td>'
+      +'<td style="font-weight:600;">'+editCell(r.id,'subtotal',m.subtotal)+'</td>'
+      +'<td style="'+(bal!==null&&bal<0?'color:var(--red);font-weight:600;':'')+'">'
+        +(bal!==null?fNum(bal):editCell(r.id,'balance',m.balance))+'</td>'
+      +'<td class="tc '+rcls+'">'+(m.usage_rate||'—')+'</td>'
+      +'<td class="tc">'+editCell(r.id,'process_rate',m.process_rate)+'</td>'
+      +'<td class="tc"><span class="chip '+cc(ov)+'" style="font-size:10px;">'+ov+'</span></td>'
+      +'<td class="tc" style="font-size:11px;color:var(--text2);">'+xe(rem)+'</td>'
+      +'</tr>';
+  });
+  var sumBal=(sumT&&sumS)?sumT-sumS:null;
+  var sumRow='<tr class="sum-row"><td colspan="2" class="tl">합 계</td><td>'+fNum(sumT)+'</td><td>—</td><td>—</td><td>'+fNum(sumS)+'</td><td>'+fNum(sumBal)+'</td><td class="tc">'+(avg!=='—'?avg+'%':'—')+'</td><td class="tc">—</td><td class="tc">—</td><td>—</td></tr>';
+  wrap.innerHTML='<table class="exec-table"><thead><tr><th colspan="11">산업안전보건관리비 집행 현황 ('+lbl+')</th></tr><tr><th style="width:36px;">NO.</th><th style="text-align:left;min-width:100px;">현장명</th><th>계상된<br>안전관리비</th><th>전월누계</th><th>금회 금액</th><th>소 계</th><th>잔 액</th><th>투입률<br>(%)</th><th>현 공정률<br>(%)</th><th>판정</th><th>비고</th></tr></thead><tbody>'+rows+sumRow+'</tbody></table>';
+}
+
+function editCell(id, field, val) {
+  var n = pNum(val);
+  var missing = (val === null || val === undefined || val === '' ||
+    val === '--' || val === '—' || val === '확인불가' || val === '확인중' ||
+    (field !== 'process_rate' && n === null));
+  if (!missing) {
+    return field === 'process_rate' ? val : fNum(n);
+  }
+  var labels = {
+    prev_cumulative: '전월누계',
+    current_amount: '금회금액',
+    subtotal: '소계',
+    balance: '잔액',
+    process_rate: '공정률(%)'
+  };
+  var lbl = labels[field] || field;
+  return '<span data-id="' + id + '" data-field="' + field + '" '
+    + 'onclick="doEdit(this)" '
+    + 'style="color:#F57C00;cursor:pointer;font-size:11px;white-space:nowrap;" '
+    + 'title="' + lbl + ' 입력">✏ ' + lbl + '</span>';
+}
+
+function doEdit(el) {
+  var id = el.getAttribute('data-id');
+  var field = el.getAttribute('data-field');
+  var labels = {
+    prev_cumulative: '전월누계',
+    current_amount: '금회금액',
+    subtotal: '소계',
+    balance: '잔액',
+    process_rate: '공정률(%)'
+  };
+  var rs = getRes();
+  var r = rs.filter(function(x) { return x.id === id; })[0];
+  if (!r) return;
+  var lbl = labels[field] || field;
+  var cur = (r.metrics && r.metrics[field]) || '';
+  var val = prompt(r.metrics.project + '\n' + lbl + ' 직접 입력:', cur);
+  if (val === null) return;
+  if (!r.metrics) r.metrics = {};
+  if (field === 'process_rate') {
+    r.metrics[field] = val.replace('%', '').trim() + '%';
+  } else {
+    var n = +(val.replace(/[^0-9.-]/g, ''));
+    if (!isNaN(n) && val.trim() !== '') {
+      r.metrics[field] = Math.round(n).toLocaleString('ko-KR');
+      // 금회금액 입력 시 소계 자동계산 (전월누계 + 금회)
+      if (field === 'current_amount') {
+        var prev = +(r.metrics.prev_cumulative || '').replace(/[^0-9]/g, '') || 0;
+        var newSub = prev + n;
+        r.metrics.subtotal = Math.round(newSub).toLocaleString('ko-KR');
+      }
+      // 소계 또는 금회금액 입력 시 잔액 자동계산
+      if (field === 'subtotal' || field === 'current_amount') {
+        var tot = +(r.metrics.total_amount || '').replace(/[^0-9]/g, '') || 0;
+        var sub = +(r.metrics.subtotal || '').replace(/[^0-9]/g, '') || 0;
+        if (tot && sub) {
+          r.metrics.balance = Math.round(tot - sub).toLocaleString('ko-KR');
+        }
+      }
+    } else {
+      r.metrics[field] = val.trim();
+    }
+  }
+  putRes(rs);
+  renderDash();
+}
+
+
+
+function exportResults(){
+  var rs=getRes();
+  if(!rs.length){alert('저장된 검토 결과가 없습니다.');return;}
+  var blob=new Blob([JSON.stringify(rs,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='산안비_검토결과_'+new Date().toLocaleDateString('ko-KR').replace(/\./g,'').replace(/ /g,'')+'.json';
+  a.click();
+  alert('✅ '+rs.length+'건 내보내기 완료!');
+}
+
+function importResults(ev){
+  var file=ev.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      var imported=JSON.parse(e.target.result);
+      if(!Array.isArray(imported)){alert('올바른 형식이 아닙니다.');return;}
+      var exIds={};getRes().forEach(function(r){exIds[r.id]=true;});
+      var added=imported.filter(function(r){return!exIds[r.id];});
+      var merged=added.concat(getRes());
+      if(window._db){await fbSave(merged);}
+      else{putRes(merged);updCnt();initYears();renderList();}
+      alert('✅ '+added.length+'건 가져오기 완료!');
+    }catch(err){alert('파일 오류: '+err.message);}
+    ev.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function saveKey(){
+  var v=document.getElementById('api-key').value.trim();
+  if(!v)return;
+  localStorage.setItem('sk_api',v);
+  _cfg=null; // 캐시 초기화
+  var el=document.getElementById('api-st');
+  if(el){el.style.color='var(--green)';el.textContent='✓ API 키 저장 완료';}
+}
+function exportCSV(){
+  var rs=getRes();var yr=document.getElementById('fy').value||String(new Date().getFullYear());var mo=document.getElementById('fm').value;
+  var fl=rs.filter(function(r){return(r.metrics&&r.metrics.period||'').indexOf(yr)>=0;});
+  if(mo){var mm=parseInt(mo,10);fl=fl.filter(function(r){var p=r.metrics&&r.metrics.period||'';var m=p.match(/(\d{1,2})월/);return m?parseInt(m[1],10)===mm:false;});}
+  if(!fl.length){alert('내보낼 데이터가 없습니다.');return;}
+  var hdr='NO.,현장명,계상된 안전관리비,전월누계,금회금액,소계,잔액,투입률(%),현공정률(%),종합판정,비고';
+  var body=fl.map(function(r,i){var m=r.metrics||{};return[i+1,m.project||'',m.total_amount||'',m.prev_cumulative||'',m.current_amount||'',m.subtotal||'',m.balance||'',m.usage_rate||'',m.process_rate||'',r.overall||'',m.remarks||''].join(',');}).join('\n');
+  var blob=new Blob(['\uFEFF'+hdr+'\n'+body],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  var lbl=mo?(yr+'년_'+parseInt(mo,10)+'월'):yr+'년_전체';
+  a.download='산업안전보건관리비_집행현황_'+lbl+'.csv';a.click();
+}
+
+var DEMO=[
+  {
+    id:'real_incheon',
+    fileName:'산업안전보건관리비(26.03)_인천신청사.pdf',
+    analyzedAt:'2026-03-20T10:00:00.000Z',
+    overall:'주의',
+    summary:'2026년 3월 인천신청사 신축공사 안전보건관리비 검토 결과, 전반적 집행은 양호하나 일부 보호구 단가 초과 및 세금계산서 미첨부 항목이 확인되어 시정이 필요합니다.',
+    metrics:{
+      project:'인천신청사 신축공사',period:'2026년 03월',
+      total_amount:'2,717,302,255',prev_cumulative:'97,117,160',
+      current_amount:'21,252,373',subtotal:'118,369,533',
+      balance:'2,598,932,722',usage_rate:'4.36%',process_rate:'1.61%',remarks:'-'
+    },
+    quick_verdict:{
+      violations:['전격식안전벨트 100,000원 — (주)안전파트너스, 2부 3페이지, 사내지침 50,000원 초과'],
+      warnings:['개인보호구 세금계산서 미첨부 — 협력업체A, 3부, 금액 확인 불가','지급대장 수령자 서명 누락 — 4부, 안전화 3건'],
+      goods:['타워크레인 안전점검 실시','안전교육비 법정 기준 준수','TBM 실시 및 유해위험방지계획서 작성']
+    },
+    items_review:'안전관리비 총 27.2억 중 4.36%(1.18억) 집행. 초기 공사단계로 투입률 낮으나 공정률(1.61%) 대비 적정. 안전시설비·교육비는 적정 집행.',
+    misuse_check:{
+      overall_status:'이상없음',total_suspicious_amount:'없음',items:[],
+      opinion:'목적외 사용 의심 항목 없음. 전 집행 항목이 안전보건 목적에 부합.'
+    },
+    guideline_compliance:{
+      overall_status:'일부위반',
+      items:[
+        {category:'안전벨트(전격식)',vendor:'(주)안전파트너스',page_ref:'2부 3p',standard:'근로자 50,000원 이하',actual:'100,000원×6개',status:'위반',action:'특수목적 소명서 제출'},
+        {category:'안전모(근로자)',vendor:'현장구매',page_ref:'2부 5p',standard:'7,000원 이하',actual:'8,000원×50개',status:'주의',action:'사내지침 재확인'},
+        {category:'안전화',vendor:'—',page_ref:'4부',standard:'80,000원/6개월',actual:'단가 미기재',status:'확인불가',action:'세금계산서 제출'},
+        {category:'타워신호수 특별교육',vendor:'안전교육원',page_ref:'3부',standard:'법정교육 적정',actual:'90,000원×8명',status:'준수',action:'—'}
+      ],
+      opinion:'안전벨트 단가 초과 1건, 안전모 소폭 초과 1건 확인. 세금계산서 미첨부로 안전화 단가 확인 불가.'
+    },
+    tax_invoice_check:{
+      status:'일부불일치',
+      items:[
+        {vendor:'(주)안전파트너스',amount:'600,000원',status:'일치',page_ref:'2부',note:'세금계산서 첨부 완료'},
+        {vendor:'안전교육원',amount:'720,000원',status:'일치',page_ref:'3부',note:'교육이수증 첨부'},
+        {vendor:'협력업체A',amount:'확인불가',status:'미첨부',page_ref:'3부',note:'보호구 구매 세금계산서 누락'}
+      ],
+      opinion:'대부분 세금계산서 적정 첨부. 보호구 1건 미첨부로 즉시 제출 필요.'
+    },
+    ppe_ledger_check:{
+      status:'미흡',
+      items:[
+        {ppe_name:'안전모(근로자)',quantity:'50개',page_ref:'2부',status:'적정',note:'지급대장 서명 완료'},
+        {ppe_name:'안전벨트(전격식)',quantity:'6개',page_ref:'2부',status:'주의',note:'특수목적 소명 필요'},
+        {ppe_name:'안전화',quantity:'3족',page_ref:'4부',status:'미흡',note:'수령자 서명 누락'}
+      ],
+      opinion:'안전화 지급대장 서명 누락. 즉시 보완 필요.'
+    },
+    action_required:[
+      {priority:'긴급',item:'전격식안전벨트 특수목적 소명서 제출',vendor:'(주)안전파트너스',page_ref:'2부 3p',deadline:'1주이내'},
+      {priority:'긴급',item:'보호구 세금계산서 즉시 제출',vendor:'협력업체A',page_ref:'3부',deadline:'즉시'},
+      {priority:'일반',item:'안전화 지급대장 수령자 서명 보완',vendor:'—',page_ref:'4부',deadline:'1주이내'}
+    ],
+    issues:[
+      {level:'위반',content:'전격식안전벨트 100,000원 — (주)안전파트너스, 2부 3p, 사내지침 초과'},
+      {level:'주의',content:'보호구 세금계산서 미첨부 — 협력업체A, 3부, 즉시 제출 필요'},
+      {level:'주의',content:'안전화 지급대장 수령자 서명 누락 — 4부'},
+      {level:'양호',content:'안전교육 및 안전시설비 적정 집행'}
+    ],
+    recommendations:'① 전격식안전벨트 초과분 소명서 제출 ② 보호구 세금계산서 즉시 첨부 ③ 지급대장 서명 보완 ④ 차기 구매 시 사내지침 단가 사전 확인'
+  },
+  {
+    id:'real_gorim',
+    fileName:'2__산업안전보건관리비_사용내역서_26년04월_-압축됨.pdf',
+    analyzedAt:'2026-06-01T15:16:00.000Z',
+    overall:'주의',
+    summary:'2026년 4월 용인 고림지구 H5BL 대광로제비앙 아파트 신축공사 검토 결과, 안전반장 인건비는 사내 기준(안전시설비 정산)에 따라 적정 처리. 안전지팡이 인건비 8,600,000원은 품목 불명확으로 목적외 사용 의심. 전격식안전벨트 단가 초과 및 지급대장 일부 미비 확인.',
+    metrics:{
+      project:'용인 고림지구 H5BL 대광로제비앙 아파트 신축공사',period:'2026년 04월',
+      total_amount:'4,787,569,750',prev_cumulative:'확인중',
+      current_amount:'확인중',subtotal:'확인중',
+      balance:'확인중',usage_rate:'7.59%',process_rate:'확인중',remarks:'-'
+    },
+    quick_verdict:{
+      violations:[
+        '안전지팡이 인건비 8,600,000원 — Y&P시스템, 1부, 품목명 불명확·목적외 사용 의심',
+        '전격식안전벨트 100,000원×6개 — 1부 3부, 사내지침(근로자 50,000원) 초과'
+      ],
+      warnings:[
+        '개인보호구 세금계산서 미첨부 — 4부, 단가 및 금액 확인 불가',
+        '안전화·안전각반 지급대장 서명·날짜 누락 — 4부',
+        '안전모(보안경부착형) 단가 미기재 — 4부, 기준 준수 확인 불가'
+      ],
+      goods:[
+        '안전관리자·보건관리자·안전반장 인건비 — 사내 기준 적정 처리',
+        '타워신호수 특별교육 8회(90,000원×8명) 적정 집행',
+        'TBM 실시·유해위험방지계획서 작성·타워크레인 안전점검 준수',
+        '안전시설비·보호구 항목별 사용내역 및 사진증빙 첨부'
+      ]
+    },
+    items_review:'안전관리비 총 47.9억 중 7.59% 집행. 4개 부(청크)로 구성. 안전시설비 2.8억, 보호구 0.39억, 교육비 0.87억, 안전진단비 0.73억, 기타 소액. 안전반장 인건비는 안전시설비 항목으로 급여명세서·작업일보 증빙하여 적정.',
+    misuse_check:{
+      overall_status:'의심항목있음',
+      total_suspicious_amount:'8,600,000원',
+      items:[
+        {item_name:'안전지팡이 인건비',vendor:'Y&P시스템',page_ref:'1부',amount:'8,600,000원',reason:'품목명 불명확·고액. 안전관리비 목적외 사용 의심. 계약서·납품확인서 요구.',severity:'위반',legal_basis:'산업안전보건법 제72조'}
+      ],
+      opinion:'안전관리자·보건관리자·안전반장 인건비는 사내 기준에 따라 적정 처리. 안전지팡이 인건비만 목적외 사용 의심으로 즉시 소명 필요.'
+    },
+    guideline_compliance:{
+      overall_status:'일부위반',
+      items:[
+        {category:'안전벨트(전격식)',vendor:'1부·3부 구매업체',page_ref:'1부·3부',standard:'근로자 50,000원 이하',actual:'100,000원×6개',status:'위반',action:'특수목적 소명서 제출'},
+        {category:'안전모(보안경부착형)',vendor:'4부 구매업체',page_ref:'4부',standard:'14,000원 이하',actual:'단가 미기재',status:'확인불가',action:'세금계산서 제출'},
+        {category:'안전화',vendor:'4부 구매업체',page_ref:'4부',standard:'80,000원/6개월',actual:'3족·단가 미기재',status:'확인불가',action:'세금계산서 제출'},
+        {category:'안전모(근로자일반)',vendor:'3부',page_ref:'3부',standard:'7,000원 이하',actual:'8,000원',status:'주의',action:'소명 권장'},
+        {category:'안전보건교육(타워신호수)',vendor:'안전교육원',page_ref:'2·3부',standard:'법정교육 적정',actual:'90,000원×8명',status:'준수',action:'—'},
+        {category:'안전반장 인건비',vendor:'—',page_ref:'1부',standard:'안전시설비 정산(사내기준)',actual:'급여명세서·작업일보 증빙',status:'준수',action:'—'}
+      ],
+      opinion:'전격식안전벨트 단가 초과 1건, 세금계산서 미첨부로 단가 확인 불가 2건. 안전반장 인건비는 사내 기준 적정.'
+    },
+    tax_invoice_check:{
+      status:'불일치',
+      items:[
+        {vendor:'Y&P시스템',amount:'8,600,000원',status:'일치',page_ref:'1부',note:'전자세금계산서 첨부·품목 확인 필요'},
+        {vendor:'와이앤피시스템',amount:'4,300,000원',status:'일치',page_ref:'1부',note:'전자세금계산서 승인번호 확인'},
+        {vendor:'2부 안전시설비 업체',amount:'884,000원',status:'일치',page_ref:'2부',note:'거래명세서·사진 일치'},
+        {vendor:'개인보호구 구매업체',amount:'확인불가',status:'미첨부',page_ref:'4부',note:'세금계산서 미첨부. 즉시 제출 요망'}
+      ],
+      opinion:'전자세금계산서 대부분 적정. 4부 개인보호구 세금계산서 미첨부로 금액 확인 불가.'
+    },
+    ppe_ledger_check:{
+      status:'미흡',
+      items:[
+        {ppe_name:'안전모(일반)',quantity:'1,000개',page_ref:'3부',status:'적정',note:'현장사진 대량입고 확인'},
+        {ppe_name:'안전모(보안경부착형)',quantity:'10개',page_ref:'4부',status:'주의',note:'지급대장 서명 일부 누락'},
+        {ppe_name:'안전벨트(전체식)',quantity:'6개·10개',page_ref:'3·4부',status:'적정',note:'현장착용 확인'},
+        {ppe_name:'안전화',quantity:'3족',page_ref:'4부',status:'미흡',note:'지급일자·수령자 미기재'},
+        {ppe_name:'안전각반',quantity:'10개',page_ref:'4부',status:'미흡',note:'지급대장 미확인'},
+        {ppe_name:'보안경',quantity:'4개',page_ref:'4부',status:'적정',note:'지급 확인'},
+        {ppe_name:'반사조끼',quantity:'10개',page_ref:'3부',status:'적정',note:'현장사진 확인'}
+      ],
+      opinion:'안전화·안전각반 지급대장 서명 누락. 보안경부착형 안전모 서명 일부 누락. 즉시 보완 필요.'
+    },
+    action_required:[
+      {priority:'긴급',item:'안전지팡이 인건비 품목 소명 및 계약서 제출',vendor:'Y&P시스템',page_ref:'1부',deadline:'즉시'},
+      {priority:'긴급',item:'전격식안전벨트 특수목적 소명서 제출',vendor:'1부·3부 구매업체',page_ref:'1부·3부',deadline:'1주이내'},
+      {priority:'긴급',item:'4부 개인보호구 세금계산서 제출',vendor:'개인보호구 구매업체',page_ref:'4부',deadline:'즉시'},
+      {priority:'일반',item:'안전화·안전각반 지급대장 서명·날짜 보완',vendor:'—',page_ref:'4부',deadline:'1주이내'},
+      {priority:'일반',item:'보안경부착형 안전모 지급대장 서명 보완',vendor:'—',page_ref:'4부',deadline:'1주이내'}
+    ],
+    issues:[
+      {level:'위반',content:'안전지팡이 인건비 8,600,000원 — Y&P시스템, 1부, 품목불명확 목적외사용 의심'},
+      {level:'위반',content:'전격식안전벨트 100,000원 — 1부·3부, 사내지침(50,000원) 초과'},
+      {level:'주의',content:'개인보호구 세금계산서 미첨부 — 4부, 금액확인 불가'},
+      {level:'주의',content:'안전화·안전각반 지급대장 서명·날짜 누락 — 4부'},
+      {level:'양호',content:'안전관리자·보건관리자·안전반장 인건비 사내기준 적정 처리'},
+      {level:'양호',content:'타워신호수 특별교육·TBM·유해위험방지계획서 안전절차 준수'}
+    ],
+    recommendations:'① 안전지팡이 인건비 8,600,000원 품목 소명 및 계약서 즉시 제출 ② 전격식안전벨트 초과분 소명서 ③ 4부 세금계산서 즉시 제출 ④ 지급대장 누락건 보완 ⑤ 차기 구매시 사내지침 단가 사전 확인 의무화'
+  }
+];
+
+function loadDemo(){
+  if(!confirm('실제 검토 데이터(인천신청사·용인 고림지구)를 불러오시겠습니까?\n(기존 데이터는 유지됩니다)'))return;
+  var ex=getRes();var exIds={};ex.forEach(function(r){exIds[r.id]=true;});
+  var add=DEMO.filter(function(r){return!exIds[r.id];});
+  putRes(add.concat(ex));updCnt();initYears();
+  alert('검토 데이터 '+add.length+'건 로드 완료!\n\n인천신청사 (2026년 3월)\n용인 고림지구 H5BL (2026년 4월)');
+  goTab('list');
+}
+</script>
+</body>
+</html>

@@ -992,8 +992,8 @@ function renderReport(d){
       txt.appendChild(document.createTextNode(' — '+xe(iss.content)));
       // 2차 검토 셀렉트 (주의·위반만)
       if(needReview){
-        var savedKey='review2_'+(cur&&cur.id?cur.id:'tmp')+'_'+idx;
-        var savedVal=localStorage.getItem(savedKey)||'';
+        var savedKey='review2_'+(d.id||cur&&cur.id||'tmp')+'_'+idx;
+        var savedVal=(d._reviews&&d._reviews[idx])||localStorage.getItem(savedKey)||'';
         var selWrap=document.createElement('div');
         selWrap.style.marginTop='6px';
         var selLabel=document.createElement('span');
@@ -1031,6 +1031,18 @@ function renderReport(d){
 
   document.getElementById('rs-rec').innerHTML = xe(d.recommendations);
   document.getElementById('rfoot').textContent='검토일자: '+new Date().toLocaleDateString('ko-KR');
+  // 저장된 2차 검토 결과 복원 (localStorage에 세팅)
+  if(d._reviews){
+    Object.keys(d._reviews).forEach(function(idx){
+      var key='review2_'+(d.id||cur&&cur.id||'tmp')+'_'+idx;
+      localStorage.setItem(key,d._reviews[idx]);
+    });
+  }
+  // 저장된 서명 복원
+  if(d._signature){
+    var key2='sign_'+(d.id||cur&&cur.id||'tmp');
+    localStorage.setItem(key2,d._signature);
+  }
   document.getElementById('rw').style.display='block';
   document.getElementById('rw').scrollIntoView({behavior:'smooth',block:'start'});
   loadSign();
@@ -1080,9 +1092,16 @@ function loadSharedResults(){
 function saveSign(val){
   var key='sign_'+(cur&&cur.id?cur.id:'tmp');
   localStorage.setItem(key,val);
+  if(cur)cur._signature=val; // cur 객체에도 즉시 반영
 }
 
 function loadSign(){
+  // _signature가 직접 있으면 우선 사용
+  if(cur&&cur._signature){
+    var el2=document.getElementById('sign-input');
+    if(el2)el2.value=cur._signature;
+    return;
+  }
   var key='sign_'+(cur&&cur.id?cur.id:'tmp');
   var v=localStorage.getItem(key)||'';
   var el=document.getElementById('sign-input');
@@ -1090,7 +1109,17 @@ function loadSign(){
 }
 
 function saveReview2(sel){
-  localStorage.setItem(sel.getAttribute('data-key'),sel.value);
+  var dataKey=sel.getAttribute('data-key');
+  localStorage.setItem(dataKey,sel.value);
+  // cur._reviews에도 즉시 반영 (저장 시 포함되도록)
+  if(cur){
+    if(!cur._reviews)cur._reviews={};
+    // key 형식: review2_{id}_{idx} 에서 idx 추출
+    var parts=dataKey.split('_');
+    var idx=parts[parts.length-1];
+    if(sel.value)cur._reviews[idx]=sel.value;
+    else delete cur._reviews[idx];
+  }
   var lid=sel.getAttribute('data-label-id');
   var lb=lid?document.getElementById(lid):sel.nextSibling;
   if(lb){
@@ -1196,6 +1225,19 @@ function saveFeedback(){
 async function saveResult(){
   if(!cur){alert('저장할 결과가 없습니다.');return;}
   var result=Object.assign({id:'r_'+Date.now()},cur);
+  // 2차 검토 결과 수집하여 결과 객체에 포함
+  var reviews={};
+  (result.issues||[]).forEach(function(iss,idx){
+    if(iss.level==='위반'||iss.level==='주의'){
+      var key='review2_'+(cur.id||'tmp')+'_'+idx;
+      var val=localStorage.getItem(key)||'';
+      if(val)reviews[idx]=val;
+    }
+  });
+  result._reviews=reviews;
+  // 서명 수집
+  var signEl=document.getElementById('sign-input');
+  result._signature=signEl?signEl.value:'';
   var rs=getRes().filter(function(r){return r.id!==result.id;});
   rs.unshift(result);rs=rs.slice(0,200);
   if(window._db){

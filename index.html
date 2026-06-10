@@ -39,8 +39,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .tab.on{color:var(--navy);border-bottom-color:var(--navy);}
 .tab-cnt{font-size:10px;font-weight:700;background:var(--navy-dim);color:var(--navy);padding:1px 6px;border-radius:10px;}
 .main{max-width:980px;margin:0 auto;padding:28px 24px 80px;}
-.pane{display:none;}
-.pane.on{display:block;}
+.pane{display:none !important;}
+.pane.on{display:block !important;}
 .sec-t{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .sec-t::after{content:'';flex:1;height:1px;background:var(--border);}
 .gl-box{background:var(--bg2);border:1px solid rgba(27,47,160,.2);border-top:3px solid var(--navy);border-radius:var(--rl);padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow);}
@@ -1070,9 +1070,15 @@ function initFirebaseSync(){
     }else{
       _localResults=[];
     }
-    updCnt();initYears();
-    if(document.getElementById('pane-list').classList.contains('on'))renderList();
-    if(document.getElementById('pane-dashboard').classList.contains('on'))renderDash();
+    updCnt();
+    initYears();
+    // 현재 활성 탭만 갱신
+    var activePane=document.querySelector('.pane.on');
+    if(!activePane)return;
+    var paneId=activePane.id;
+    if(paneId==='pane-list')renderList();
+    else if(paneId==='pane-dashboard')renderDash();
+    // PDF 분석 탭이나 노트 탭에서는 갱신 안 함
   },function(err){console.warn('Firebase sync error:',err);});
 }
 

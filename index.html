@@ -39,8 +39,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .tab.on{color:var(--navy);border-bottom-color:var(--navy);}
 .tab-cnt{font-size:10px;font-weight:700;background:var(--navy-dim);color:var(--navy);padding:1px 6px;border-radius:10px;}
 .main{max-width:980px;margin:0 auto;padding:28px 24px 80px;}
-.pane{display:none !important;}
-.pane.on{display:block !important;}
+.pane{display:none;}
+.pane.on{display:block;}
 .sec-t{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .sec-t::after{content:'';flex:1;height:1px;background:var(--border);}
 .gl-box{background:var(--bg2);border:1px solid rgba(27,47,160,.2);border-top:3px solid var(--navy);border-radius:var(--rl);padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow);}
@@ -221,7 +221,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .notes-panel .note-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;}
 .notes-panel .note-del:hover{color:var(--red);}
 
-@media print{.hdr,.tab-bar,.report-acts,.api-box,.upload,.frow,.warn-box,.run-btn,.ld-box,.err-box{display:none!important;}.pane{display:block!important;}body{background:#fff;}.report-hdr{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+@media print{.hdr,.tab-bar,.report-acts,.api-box,.upload,.frow,.warn-box,.run-btn,.ld-box,.err-box{display:none!important;}body{background:#fff;}.report-hdr{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 @media(max-width:640px){.hdr-in,.main{padding-left:16px;padding-right:16px;}.gl-grid,.kpi-row,.report-meta{grid-template-columns:repeat(2,1fr);}.two-col,.li-meta{grid-template-columns:1fr;}.tab{padding:12px;font-size:12px;}}
 </style>
 </head>
@@ -471,6 +471,10 @@ var SK='safety_v1';
 var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 중...','사내 지침 대조 중...','세금계산서·거래명세서 확인 중...','개인보호구 지급대장 검토 중...','검토 결과 종합 중...'];
 
 (function init(){
+  // 초기 pane 숨김
+  document.querySelectorAll('.pane').forEach(function(p){
+    if(!p.classList.contains('on'))p.style.display='none';
+  });
   // 설정 로드 및 Firebase 초기화
   getConfig().then(function(){initFirebaseSync();});
   // 로컬 실행 시 API 키 UI
@@ -511,8 +515,12 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
 function goTab(t){
   var tabs=['analyze','list','dashboard','notes'];
   document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('on',tabs[i]===t);});
-  document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('on');});
-  document.getElementById('pane-'+t).classList.add('on');
+  document.querySelectorAll('.pane').forEach(function(p){
+    p.classList.remove('on');
+    p.style.display='none';
+  });
+  var el=document.getElementById('pane-'+t);
+  if(el){el.classList.add('on');el.style.display='block';}
   if(t==='list')renderList();
   if(t==='dashboard'){initYears();renderDash();}
   if(t==='notes')renderNotes();

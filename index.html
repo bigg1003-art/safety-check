@@ -498,10 +498,17 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
   // 이벤트 위임: 목록·노트 버튼
   document.body.addEventListener('click',function(e){
     var tgt=e.target;
+    // 현장명 수정
+    var eid=tgt.getAttribute('data-edit-id');
+    var efd=tgt.getAttribute('data-edit-field');
+    if(eid&&efd){editField(eid,efd);return;}
+    // 결과 보기
     var vid=tgt.getAttribute('data-view');
     if(vid){viewRes(vid);return;}
+    // 결과 삭제
     var did=tgt.getAttribute('data-del-res');
     if(did){delRes(did);return;}
+    // 노트 삭제
     var nid=tgt.getAttribute('data-del');
     if(nid){delNote(nid);return;}
   });
@@ -1443,26 +1450,29 @@ function doEdit(el) {
 
 function editField(id, field){
   var rs=getRes();
-  var r=rs.filter(function(x){return x.id===id;})[0];
-  if(!r)return;
+  var ridx=rs.findIndex(function(x){return x.id===id;});
+  if(ridx<0)return;
+  var r=rs[ridx];
   var labels={project:'현장명',period:'기간',overall:'판정'};
-  var cur_val=(r.metrics&&r.metrics[field])||r[field]||'';
-  var new_val=prompt((labels[field]||field)+' 수정:', cur_val);
-  if(new_val===null)return;
-  // metrics 안의 값이면 metrics 업데이트
-  if(r.metrics&&field in r.metrics){
-    r.metrics[field]=new_val;
-  } else {
-    r[field]=new_val;
-  }
-  // 검색용 project 필드도 업데이트
-  if(field==='project')r.project=new_val;
-  var idx=rs.findIndex(function(x){return x.id===id;});
-  rs[idx]=r;
+  var cur_val='';
+  if(r.metrics&&r.metrics[field]!==undefined) cur_val=r.metrics[field];
+  else if(r[field]!==undefined) cur_val=r[field];
+  var new_val=prompt('[ '+(labels[field]||field)+' ] 수정 (현재: '+cur_val+')', cur_val);
+  if(new_val===null||new_val===cur_val)return;
+  new_val=new_val.trim();
+  if(!new_val)return;
+  if(r.metrics&&r.metrics[field]!==undefined) r.metrics[field]=new_val;
+  r[field]=new_val; // 최상위에도 저장
+  rs[ridx]=r;
   if(window._db){
-    fbSave(rs).then(function(){renderList();alert('✅ 수정 완료!');});
+    fbSave(rs).then(function(){
+      _localResults=rs;
+      renderList();
+      alert('✅ ['+new_val+'] 으로 수정되었습니다!');
+    });
   }else{
-    putRes(rs);renderList();alert('✅ 수정 완료!');
+    putRes(rs);renderList();
+    alert('✅ ['+new_val+'] 으로 수정되었습니다!');
   }
 }
 

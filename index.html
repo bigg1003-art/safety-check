@@ -512,7 +512,11 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
     var nid=tgt.getAttribute('data-del');
     if(nid){delNote(nid);return;}
   });
-  updCnt();initYears();updNotesCnt();updNotesCnt();updateCreditBadge();
+  updCnt();initYears();
+  // 노트 카운트 강제 업데이트
+  var ntCnt=getNotes().length;
+  var ntEl=document.getElementById('notes-cnt');
+  if(ntEl)ntEl.textContent=ntCnt>0?ntCnt:'0';updNotesCnt();updateCreditBadge();
   // 공유 결과 로드 (Netlify 배포 시)
   loadSharedResults();
 
@@ -1095,6 +1099,10 @@ function initFirebaseSync(){
     }
     updCnt();
     initYears();
+    // 노트 카운트 유지
+    var nt=getNotes().length;
+    var ntE=document.getElementById('notes-cnt');
+    if(ntE)ntE.textContent=nt>0?nt:'0';
     // 현재 활성 탭만 갱신
     var activePane=document.querySelector('.pane.on');
     if(!activePane)return;

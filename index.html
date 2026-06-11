@@ -39,7 +39,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .tab.on{color:var(--navy);border-bottom-color:var(--navy);}
 .tab-cnt{font-size:10px;font-weight:700;background:var(--navy-dim);color:var(--navy);padding:1px 6px;border-radius:10px;}
 .main{max-width:980px;margin:0 auto;padding:28px 24px 80px;}
-.pane{display:none;}
+.pane{display:none;}.pane[hidden]{display:none !important;}
 .pane.on{display:block;}
 .sec-t{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .sec-t::after{content:'';flex:1;height:1px;background:var(--border);}
@@ -407,7 +407,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
       <button class="btn-danger" onclick="clearAll()">🗑 전체 삭제</button>
     </div>
   </div>
-  </div>
   <div id="list-body"></div>
 </div>
 <div class="pane" id="pane-dashboard">
@@ -506,7 +505,7 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
     var nid=tgt.getAttribute('data-del');
     if(nid){delNote(nid);return;}
   });
-  updCnt();initYears();updNotesCnt();updateCreditBadge();
+  updCnt();initYears();updNotesCnt();updNotesCnt();updateCreditBadge();
   // 공유 결과 로드 (Netlify 배포 시)
   loadSharedResults();
 
@@ -515,12 +514,18 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
 function goTab(t){
   var tabs=['analyze','list','dashboard','notes'];
   document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('on',tabs[i]===t);});
-  document.querySelectorAll('.pane').forEach(function(p){
-    p.classList.remove('on');
-    p.style.display='none';
+  // 모든 pane 숨김 (2회 반복으로 확실히)
+  ['pane-analyze','pane-list','pane-dashboard','pane-notes'].forEach(function(pid){
+    var p=document.getElementById(pid);
+    if(p){p.classList.remove('on');p.style.display='none';p.setAttribute('hidden','');}
   });
+  // 활성 pane 표시
   var el=document.getElementById('pane-'+t);
-  if(el){el.classList.add('on');el.style.display='block';}
+  if(el){
+    el.classList.add('on');
+    el.style.display='block';
+    el.removeAttribute('hidden');
+  }
   if(t==='list')renderList();
   if(t==='dashboard'){initYears();renderDash();}
   if(t==='notes')renderNotes();
@@ -784,9 +789,12 @@ async function go(){
     var doneCount=0;
     document.getElementById('lt').textContent=total>1?'총 '+total+'개 청크 동시 분석 중...':'AI 분석 중...';
     var chunkPromises=chunks.map(function(chunk,ci){
+      // 개선노트 피드백 수집 (최근 5건)
+      var notes=getNotes().slice(0,5).map(function(n){return n.content;}).join(' | ');
+      var noteHint=notes?'\n[이전 피드백/개선사항]: '+notes:'';
       var userMsg=total>1
-        ?('이 PDF는 원본의 '+chunk.startPage+'~'+chunk.endPage+'페이지 부분입니다. 산업안전보건관리비 내용을 검토하고 JSON만 출력하세요.')
-        :'산업안전보건관리비 PDF 검토. 목적외 사용 최우선. JSON만 출력.';
+        ?('이 PDF는 원본의 '+chunk.startPage+'~'+chunk.endPage+'페이지 부분입니다. 산업안전보건관리비 내용을 검토하고 JSON만 출력하세요.'+noteHint)
+        :'산업안전보건관리비 PDF 검토. 목적외 사용 최우선. JSON만 출력.'+noteHint;
       return callApi(chunk.b64,userMsg).then(function(resp){
         if(!resp)return null;
         return resp.text().then(function(respText){
@@ -1282,7 +1290,16 @@ function renderList(){
       +'<div class="li-acts"><button class="bsm bsm-v" data-view="'+r.id+'">📋 결과 보기</button><button class="bsm bsm-d" data-del-res="'+r.id+'">🗑 삭제</button></div></div>';
   }).join('');
 }
-function viewRes(id){var r=getRes().filter(function(x){return x.id===id;})[0];if(!r)return;cur=r;renderReport(r);goTab('analyze');}
+function viewRes(id){
+  var r=getRes().filter(function(x){return x.id===id;})[0];
+  if(!r)return;
+  cur=r;
+  // 목록 pane 명시적 숨김
+  var lp=document.getElementById('pane-list');
+  if(lp){lp.style.display='none';lp.classList.remove('on');}
+  renderReport(r);
+  goTab('analyze');
+}
 async function delRes(id){
   if(!confirm('이 검토 결과를 삭제하시겠습니까?'))return;
   var rs=getRes().filter(function(r){return r.id!==id;});
@@ -1306,6 +1323,9 @@ function initYears(){
   if(curY&&yrs.indexOf(+curY)>=0)fy.value=curY;
 }
 function renderDash(){
+  // 목록 pane 확실히 숨김
+  var lp=document.getElementById('pane-list');
+  if(lp&&lp.id!==('pane-dashboard')){lp.style.display='none';lp.setAttribute('hidden','');}
   var rs=getRes();
   var yr=document.getElementById('fy').value||String(new Date().getFullYear());
   var mo=document.getElementById('fm').value;

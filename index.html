@@ -1214,9 +1214,11 @@ function renderNotes(){
     groups[cat].forEach(function(n){
       var dt=new Date(n.createdAt).toLocaleDateString('ko-KR');
       var siteLabel=n.site!=='—'?'['+n.site+'] ':'';
-      html+='<div class="note-item" data-nid="'+n.id+'">'
+      html+='<div class="note-item" data-nid="'+n.id+'" style="border-left:3px solid '+(n.done?'var(--green)':'var(--border)')+';padding-left:10px;">'
         +'<div class="ni-meta"><span>'+siteLabel+dt+'</span>'
-        +'<button class="note-del" data-del="'+n.id+'">✕ 삭제</button></div>'
+        +'<button class="note-del" data-del="'+n.id+'">✕ 삭제</button>'
+        +(n.done?'<span style="color:var(--green);font-size:11px;margin-left:8px;">✅ 적용완료</span>':'<button onclick="markNoteDone(\''+n.id+'\')" style="border:none;background:rgba(0,153,68,.08);color:var(--green);font-size:11px;cursor:pointer;border-radius:5px;padding:2px 7px;margin-left:6px;">☑ 완료처리</button>')
+        +'</div>'
         +xe(n.content)
         +'</div>';
     });
@@ -1438,6 +1440,40 @@ function doEdit(el) {
 
 
 
+
+function editField(id, field){
+  var rs=getRes();
+  var r=rs.filter(function(x){return x.id===id;})[0];
+  if(!r)return;
+  var labels={project:'현장명',period:'기간',overall:'판정'};
+  var cur_val=(r.metrics&&r.metrics[field])||r[field]||'';
+  var new_val=prompt((labels[field]||field)+' 수정:', cur_val);
+  if(new_val===null)return;
+  // metrics 안의 값이면 metrics 업데이트
+  if(r.metrics&&field in r.metrics){
+    r.metrics[field]=new_val;
+  } else {
+    r[field]=new_val;
+  }
+  // 검색용 project 필드도 업데이트
+  if(field==='project')r.project=new_val;
+  var idx=rs.findIndex(function(x){return x.id===id;});
+  rs[idx]=r;
+  if(window._db){
+    fbSave(rs).then(function(){renderList();alert('✅ 수정 완료!');});
+  }else{
+    putRes(rs);renderList();alert('✅ 수정 완료!');
+  }
+}
+
+function markNoteDone(id){
+  var notes=getNotes();
+  var n=notes.find(function(x){return x.id===id;});
+  if(!n)return;
+  n.done=true;
+  localStorage.setItem('safety_notes',JSON.stringify(notes));
+  renderNotes();updNotesCnt();
+}
 function exportResults(){
   var rs=getRes();
   if(!rs.length){alert('저장된 검토 결과가 없습니다.');return;}

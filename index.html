@@ -639,36 +639,46 @@ function setProgress(cur,total){
   else bar.style.display='none';
 }
 
-var SYS="건설현장 산업안전보건관리비 전문 검토위원. 산업안전보건법 및 고용노동부 고시 기준 검토.\n[절대 금지] 재제출 요구 금지. 현재 페이지에 없는 증빙은 현페이지미확인. 미첨부 단정 금지.\n[지급주기 검토 완화] 보호구 지급주기(6개월, 1회채용시 등)는 서류상 확인이 어려우므로 위반으로 판정하지 말 것. 지급대장에 수량이 기재되어 있으면 지급주기 준수 중으로 간주. 불명확한 경우 주의 수준으로만 기재.\n[안전화 검토기준] 안전화는 목적외사용 검토 대상이 아님. 사내지침(상한 80,000원, 6개월주기) 기준으로만 검토. 단가가 80,000원 이하이면 준수. 초과 시에만 주의.\n[계상액 투입률] 집계표에서 반드시 추출.\n[증빙인식] 세금계산서=공급자+부가세+작성일. 거래명세서=품목+수량+금액. 급여명세서=성명+지급총액. 보호구지급대장=종류+지급일+서명.\n[인건비] 안전관리자 보건관리자 급여명세서 있으면 적정. 안전반장 안전시설비 적정.\n[사내지침] 안전모:직원19000이하 근로자7000이하 보안경부착14000이하 / 안전벨트:직원전체식85000이하 근로자50000이하 / 안전화:상한80000이하 (목적외사용 아님)\n[목적외 금지] 일반공사자재 복리후생 격려금 허위청구 안전무관용품\n[출력] JSON만. 마크다운금지.";
+var SYS="건설현장 산업안전보건관리비 전문 검토위원.\n[metrics 추출 최우선] 집계표(사용내역서 표지)가 보이면 반드시 추출: project=공사명, period=2026년05월형식, total_amount=계상된안전관리비금액(원단위숫자), current_amount=당월집행금액, usage_rate=비율%(소수점포함), process_rate=누계공정율%.숫자가보이면무조건기재.\n[절대금지] 재제출요구금지. 현페이지없는증빙=현페이지미확인. 미첨부단정금지.\n[지급주기완화] 지급주기는서류상확인어려우므로위반판정금지.지급대장수량있으면준수간주.\n[안전화] 목적외사용아님.사내지침(80000원이하)기준만검토.\n[증빙인식] 세금계산서=공급자+부가세+작성일.거래명세서=품목+수량+금액.급여명세서=성명+지급총액.보호구지급대장=종류+지급일+서명.\n[인건비] 안전관리자보건관리자급여명세서있으면적정.안전반장=안전시설비적정.\n[사내지침] 안전모:직원19000이하근로자7000이하보안경부착14000이하/안전벨트:직원85000이하근로자50000이하/안전화:80000이하\n[목적외금지] 일반자재복리후생격려금허위청구안전무관용품\n[출력] JSON만.마크다운금지.{overall,summary,progress_review,items_summary,metrics:{total_amount,usage_rate,period,project,prev_cumulative,current_amount,subtotal,balance,process_rate,remarks},quick_verdict:{violations[],warnings[],goods[]},misuse_check:{overall_status,total_suspicious_amount,items[],opinion},guideline_compliance:{overall_status,items[],opinion},tax_invoice_check:{status,items[],opinion},ppe_ledger_check:{status,items[],opinion},action_required[],issues[],recommendations}";
 
 async function splitPdf(f){
-  var buf=await f.arrayBuffer();
-  if(!window.PDFLib){
-    var arr=new Uint8Array(buf);
-    var b64=btoa(Array.from(arr).map(function(b){return String.fromCharCode(b);}).join(''));
-    return [{b64:b64,startPage:1,endPage:'전체'}];
-  }
-  var PDFDocument=PDFLib.PDFDocument;
-  var srcDoc=await PDFDocument.load(buf,{ignoreEncryption:true});
-  var total=srcDoc.getPageCount();
-  var CHUNK=30; // 429 방지를 위해 50페이지 단위
-  if(total<=CHUNK){
-    var arr2=new Uint8Array(buf);
-    var b64_2=btoa(Array.from(arr2).map(function(b){return String.fromCharCode(b);}).join(''));
-    return [{b64:b64_2,startPage:1,endPage:total}];
-  }
-  var chunks=[];
-  for(var start=0;start<total;start+=CHUNK){
-    var end=Math.min(start+CHUNK,total);
-    var newDoc=await PDFDocument.create();
-    var idxs=[];for(var k=start;k<end;k++)idxs.push(k);
-    var pages=await newDoc.copyPages(srcDoc,idxs);
-    pages.forEach(function(p){newDoc.addPage(p);});
-    var bytes=await newDoc.save();
-    var b64c=btoa(Array.from(new Uint8Array(bytes)).map(function(b){return String.fromCharCode(b);}).join(''));
-    chunks.push({b64:b64c,startPage:start+1,endPage:end});
-  }
-  return chunks;
+  return (async function(){
+    var buf=await f.arrayBuffer();
+    var PDFDocument=window.PDFLib?window.PDFLib.PDFDocument:null;
+    if(!PDFDocument){
+      var b64=btoa(Array.from(new Uint8Array(buf)).map(function(b){return String.fromCharCode(b);}).join(''));
+      return [{b64:b64,startPage:1,endPage:1,totalPages:1}];
+    }
+    var srcDoc=await PDFDocument.load(buf,{ignoreEncryption:true});
+    var total=srcDoc.getPageCount();
+    var CHUNK=15;
+    document.getElementById('lt').textContent='PDF 분할 중... (총 '+total+'페이지)';
+
+    async function makeChunk(idxArr,sp,ep){
+      var nd=await PDFDocument.create();
+      var pp=await nd.copyPages(srcDoc,idxArr);
+      pp.forEach(function(p){nd.addPage(p);});
+      var bytes=await nd.save();
+      var b64=btoa(Array.from(new Uint8Array(bytes)).map(function(b){return String.fromCharCode(b);}).join(''));
+      var szMB=(bytes.length/1024/1024).toFixed(1);
+      console.log('청크 '+sp+'~'+ep+'p: '+szMB+'MB');
+      return {b64:b64,startPage:sp,endPage:ep,totalPages:total};
+    }
+
+    var chunks=[];
+    // 첫 페이지만 단독 추출 (메트릭 전용 - 항상 빠르고 정확)
+    chunks.push(await makeChunk([0],1,1));
+    chunks[0].isCover=true;
+
+    // 나머지 청크 (1페이지부터 CHUNK단위로)
+    for(var s=0;s<total;s+=CHUNK){
+      var e=Math.min(s+CHUNK,total);
+      var idxArr=[];for(var k=s;k<e;k++)idxArr.push(k);
+      var chunk=await makeChunk(idxArr,s+1,e);
+      chunks.push(chunk);
+    }
+    return chunks;
+  })();
 }
 
 function mergeResults(arr){
@@ -681,7 +691,16 @@ function mergeResults(arr){
   var merged={
     overall:arr.reduce(function(a,r){return worstOv(a,r.overall||'적정');},'적정'),
     summary:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.summary||'');}).join(' '),
-    metrics:base.metrics||{},
+    metrics:(function(){
+      var m=JSON.parse(JSON.stringify(base.metrics||{}));
+      arr.forEach(function(r){
+        if(!r||!r.metrics)return;
+        ['project','period','total_amount','current_amount','usage_rate','process_rate','prev_cumulative','subtotal','balance'].forEach(function(k){
+          if((!m[k]||m[k]===''||m[k]==='—')&&r.metrics[k]&&r.metrics[k]!==''&&r.metrics[k]!=='—')m[k]=r.metrics[k];
+        });
+      });
+      return m;
+    })(),
     items_review:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.items_review||'');}).join('\n'),
     misuse_check:{
       overall_status:arr.reduce(function(a,r){return worstSt(a,r.misuse_check&&r.misuse_check.overall_status||'확인불가');},'이상없음'),
@@ -711,6 +730,18 @@ function mergeResults(arr){
   };
   var seen={};
   merged.issues=merged.issues.filter(function(iss){var k=iss.level+iss.content;if(seen[k])return false;seen[k]=true;return true;});
+  // action_required 재제출 필터
+  if(merged.action_required){
+    merged.action_required=(merged.action_required||[]).filter(function(a){
+      var t=a.item||''; return !t.includes('재제출')&&!t.includes('전체 제출')&&t.length>2;
+    });
+  }
+  // metrics 최종 후처리 - '—' 제거
+  if(merged.metrics){
+    Object.keys(merged.metrics).forEach(function(k){
+      if(merged.metrics[k]==='—'||merged.metrics[k]==='미확인')merged.metrics[k]='';
+    });
+  }
   return merged;
 }
 
@@ -803,9 +834,11 @@ async function go(){
       // 개선노트 피드백 수집 (최근 5건)
       var notes=getNotes().filter(function(n){return !n.done;}).slice(0,5).map(function(n){return n.content;}).join(' | ');
       var noteHint=notes?' [미완료피드백: '+notes+']':'';
-      var isFirst=(chunk.startPage===1);
-      var firstHint=isFirst?'[우선] 집계표에서 total_amount(계상액) usage_rate(투입률%) process_rate(공정률%) project(현장명) period(기간) 반드시 추출. ':'';
-      var pageCtx=total>1?'[전체'+chunk.totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
+      var isCover=chunk.isCover===true;  var isFirst=isCover||chunk.startPage===1;
+      var firstHint=isCover
+        ?'[집계표 전용 분석] 이 페이지는 산업안전보건관리비 사용내역서 표지입니다. 아래 항목을 metrics에 반드시 기재하세요. project=공사명(표 오른쪽 상단), period=2026년05월형식, total_amount=계상된안전관리비(₩숫자), current_amount=당월금액, usage_rate=비율%, process_rate=공정률%. 표에 숫자가 있으면 빈값 절대 금지. '
+        :isFirst?'첫청크: project,period,total_amount,usage_rate,process_rate 추출. ':''
+      var pageCtx=total>1?'[전체'+(chunk.totalPages||total*15)+'p 중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
       var evidHint='이 페이지 증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 모두 인식. 없으면 현페이지미확인. 재제출요구금지. ';
       var userMsg=pageCtx+firstHint+evidHint+'JSON만 출력.'+noteHint;
       return callApi(chunk.b64,userMsg).then(function(resp){
@@ -835,6 +868,16 @@ async function go(){
     }
     document.getElementById('lt').textContent='결과 종합 중...';
     var d=mergeResults(results);
+    // metrics 빈값: 모든 청크에서 채우기
+    if(d&&d.metrics){
+      results.forEach(function(r){
+        if(!r||!r.metrics)return;
+        ['project','period','total_amount','current_amount','usage_rate','process_rate','prev_cumulative','subtotal','balance'].forEach(function(k){
+          var cur=d.metrics[k];var src=r.metrics[k];
+          if(src&&src!=='—'&&src!==''&&src!=='미확인'&&(!cur||cur==='—'||cur===''||cur==='미확인'))d.metrics[k]=src;
+        });
+      });
+    }
     cur=Object.assign({},d,{analyzedAt:new Date().toISOString(),fileName:file.name,totalChunks:total});
     trackUsage();
     stopLd();document.getElementById('ld').style.display='none';

@@ -639,7 +639,7 @@ function setProgress(cur,total){
   else bar.style.display='none';
 }
 
-var SYS="건설현장 산업안전보건관리비 전문 검토 전문가. 산업안전보건법 고용노동부 고시 사내 지침 기준으로 분석.\n[중요] 세금계산서 거래명세서는 PDF 전체(협력업체 안전관리비 사용내역서 하단 첨부 자료 포함)에서 빠짐없이 확인할 것. 특정 페이지에 없어도 다른 섹션에 있을 수 있으므로 미첨부로 단정하지 말 것.\n[협력업체별 구분] 원청 및 협력업체별로 집행 내역을 구분하여 검토. vendor 필드에 반드시 업체명 또는 원청 협력업체명 명시.\n[인건비 분류 기준] 안전관리자 보건관리자 인건비는 보호구 구입비와 별도로 계상되며 안전관리비 적정 사용 범위임. 안전반장 인건비는 안전시설비 항목으로 정산하며 급여명세서 작업일보로 증빙함. 이 항목들은 목적외 사용으로 판단하지 말 것.\n[사내 지침] 안전모: 직원용 19000원, 근로자일반 7000원, 보안경부착형 14000원, 1회채용시 / 안전벨트: 직원용전체식 85000원, 근로자 50000원, 1회채용시, 불필요공종제외 / 안전화: 상한80000원, 6개월\n[목적외 사용 금지] 일반공사자재, 복리후생비, 안전무관사무용품, 일반운영비, 허위중복청구, 격려금포상금회식비, 안전목적불명확한장비임차료\n규칙: 순수 JSON만 출력. 마크다운 없음. 각 문자열 150자 이내. 위반 주의 항목에 반드시 업체명(vendor)과 페이지(page_ref) 명시.\n{\"overall\":\"적정|주의|부적정\",\"summary\":\"핵심요약 3줄이내\",\"progress_review\":\"공정률 대비 집행률 평가 2문장이내\",\"items_summary\":\"금월 항목별 집행금액 요약 3줄이내\",\"metrics\":{\"total_amount\":\"계상액\",\"usage_rate\":\"투입률%\",\"period\":\"YYYY년 MM월\",\"project\":\"현장명\",\"prev_cumulative\":\"전월누계(없으면--)\",\"current_amount\":\"금회금액(없으면--)\",\"subtotal\":\"소계(없으면--)\",\"balance\":\"잔액(없으면--)\",\"process_rate\":\"공정률%(없으면--)\",\"remarks\":\"비고(없으면-)\"},\"quick_verdict\":{\"violations\":[\"위반내용(업체명 페이지 금액 포함)\"],\"warnings\":[\"주의내용(업체명 페이지 포함)\"],\"goods\":[\"양호내용\"]},\"misuse_check\":{\"overall_status\":\"이상없음|의심항목있음|목적외사용확인|확인불가\",\"total_suspicious_amount\":\"합계또는없음\",\"items\":[{\"item_name\":\"항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"amount\":\"금액\",\"reason\":\"사유50자\",\"severity\":\"경미|주의|위반\",\"legal_basis\":\"법령\"}],\"opinion\":\"1문장\"},\"guideline_compliance\":{\"overall_status\":\"준수|일부위반|위반|확인불가\",\"items\":[{\"category\":\"항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"standard\":\"기준\",\"actual\":\"실제\",\"status\":\"준수|위반|주의|확인불가\",\"action\":\"필요조치20자\"}],\"opinion\":\"1문장\"},\"tax_invoice_check\":{\"status\":\"일치|불일치|일부불일치|확인불가\",\"items\":[{\"vendor\":\"업체명\",\"amount\":\"금액\",\"status\":\"일치|불일치|미첨부\",\"page_ref\":\"페이지또는부\",\"note\":\"50자\"}],\"opinion\":\"1문장\"},\"ppe_ledger_check\":{\"status\":\"적정|미흡|누락|확인불가\",\"items\":[{\"ppe_name\":\"명칭\",\"quantity\":\"수량\",\"page_ref\":\"페이지또는부\",\"status\":\"적정|미흡|누락\",\"note\":\"30자\"}],\"opinion\":\"1문장\"},\"action_required\":[{\"priority\":\"긴급|일반\",\"item\":\"조치항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"deadline\":\"즉시|1주이내|1개월이내\"}],\"issues\":[{\"level\":\"위반|주의|양호\",\"content\":\"100자\"}],\"recommendations\":\"150자\"}";
+var SYS="건설현장 산업안전보건관리비 전문 검토위원.\n[절대 금지 사항] (1)재제출 요구 금지: 분석 시스템이 PDF 전체를 수신했으므로 문서 재제출을 action_required에 절대 기재하지 말것. (2)전체 페이지 중 일부만 받아도 미확인이지 미제출이 아님.\n[계상액 투입률 추출 최우선] 첫 페이지(집계표)에서 계상된안전관리비 total_amount와 투입률 usage_rate를 반드시 추출. 숫자가 보이면 무조건 기재.\n[증빙 판단] 현재 청크에 세금계산서 거래명세서가 없으면 현페이지미확인으로 처리. 절대 미첨부 단정 금지. 급여명세서 보호구지급대장도 동일.\n[증빙 인식 기준] 세금계산서=공급자+세액+작성일. 거래명세서=품목+수량+금액. 급여명세서=성명+지급총액. 보호구지급대장=보호구종류+지급일+서명. 해당 형식 보이면 첨부됨 판정.\n[협력업체 구분] vendor 필드 업체명 필수.\n[인건비] 안전관리자 보건관리자 급여명세서 있으면 적정. 안전반장 안전시설비 정산 적정.\n[사내 지침] 안전모: 직원19000 근로자7000 보안경부착14000 / 안전벨트: 직원85000 근로자50000 / 안전화: 상한80000 6개월\n[출력] 순수 JSON만. page_ref 필수.";
 
 async function splitPdf(f){
   var buf=await f.arrayBuffer();
@@ -711,7 +711,43 @@ function mergeResults(arr){
   };
   var seen={};
   merged.issues=merged.issues.filter(function(iss){var k=iss.level+iss.content;if(seen[k])return false;seen[k]=true;return true;});
-  return merged;
+
+  // tax_invoice: 현페이지미확인 제거 → 실제 확인된 것만 유지
+  if(merged.tax_invoice_check&&merged.tax_invoice_check.items){
+    merged.tax_invoice_check.items=merged.tax_invoice_check.items.filter(function(item){
+      return item.status!=='현페이지미확인';
+    });
+    var taxItems=merged.tax_invoice_check.items;
+    var anyBadTax=taxItems.some(function(e){return e.status==='불일치';});
+    var allOkTax=taxItems.length>0&&taxItems.every(function(e){return e.status==='일치';});
+    merged.tax_invoice_check.status=taxItems.length===0?'확인불가':anyBadTax?'불일치':allOkTax?'일치':'일부불일치';
+  }
+  // issues: 증빙 확인불가 오류 제거
+  if(merged.issues){
+    merged.issues=merged.issues.filter(function(iss){
+      return iss.content&&!iss.content.includes('현페이지미확인');
+    });
+  }
+  
+  // action_required: 재제출/전체제출 불필요 항목 제거
+  if(merged.action_required){
+    merged.action_required=merged.action_required.filter(function(a){
+      var item=a.item||'';
+      return !item.includes('재제출')&&!item.includes('전체 제출')&&!item.includes('일괄 제시')&&item.length>2;
+    });
+  }
+  // metrics: 모든 청크 결과에서 비어있는 값 채우기
+  arr.forEach(function(r){
+    if(!r||!r.metrics)return;
+    var keys=['total_amount','usage_rate','period','project','prev_cumulative','current_amount','subtotal','balance','process_rate'];
+    keys.forEach(function(k){
+      var cur=merged.metrics[k];
+      var src=r.metrics[k];
+      if(src&&src!=='미확인'&&src!=='--'&&src!==''&&(!cur||cur==='미확인'||cur==='--'||cur===''))
+        merged.metrics[k]=src;
+    });
+  });
+return merged;
 }
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
@@ -796,6 +832,7 @@ async function go(){
       document.getElementById('run').disabled=false;return;
     }
     var total=chunks.length;
+    var totalPages=chunks.length>0?(chunks[chunks.length-1].endPage||0):0;
     var results=[];
     var doneCount=0;
     document.getElementById('lt').textContent=total>1?'총 '+total+'개 청크 동시 분석 중...':'AI 분석 중...';
@@ -803,9 +840,12 @@ async function go(){
       // 개선노트 피드백 수집 (최근 5건)
       var notes=getNotes().slice(0,5).map(function(n){return n.content;}).join(' | ');
       var noteHint=notes?'\n[이전 피드백/개선사항]: '+notes:'';
+      var jsonSchema='{"overall":"적정|주의|부적정","summary":"3줄이내","progress_review":"공정률대비집행률","items_summary":"항목별집행금액","metrics":{"total_amount":"계상액숫자","usage_rate":"투입률%","period":"YYYY년MM월","project":"현장명","prev_cumulative":"전월누계","current_amount":"당월금액","subtotal":"소계","balance":"잔액","process_rate":"공정률%","remarks":""},"quick_verdict":{"violations":[],"warnings":[],"goods":[]},"misuse_check":{"overall_status":"이상없음|의심항목있음|목적외사용확인|확인불가","total_suspicious_amount":"","items":[{"item_name":"","vendor":"","page_ref":"","amount":"","reason":"","severity":"경미|주의|위반","legal_basis":""}],"opinion":""},"guideline_compliance":{"overall_status":"준수|일부위반|위반|확인불가","items":[{"category":"","vendor":"","page_ref":"","standard":"","actual":"","status":"준수|위반|주의|확인불가","action":""}],"opinion":""},"tax_invoice_check":{"status":"일치|불일치|일부불일치|현페이지미확인","items":[{"vendor":"","amount":"","status":"일치|불일치|현페이지미확인","page_ref":"","note":""}],"opinion":""},"ppe_ledger_check":{"status":"적정|미흡|누락|확인불가","items":[{"ppe_name":"","quantity":"","page_ref":"","status":"적정|미흡|누락","note":""}],"opinion":""},"action_required":[{"priority":"긴급|일반","item":"문서재제출제외한실질조치만","vendor":"","page_ref":"","deadline":"즉시|1주|1개월"}],"issues":[{"level":"위반|주의|양호","content":"","page_ref":""}],"recommendations":""}';
+      var isFirstChunk=(ci===0);
+      var firstChunkHint=isFirstChunk?'[첫페이지 필수작업] 집계표(사용내역서)에서 계상된안전관리비(total_amount), 당월집행금액(current_amount), 누계투입률(usage_rate), 공정률(process_rate), 현장명(project), 기간(period)을 반드시 추출하여 metrics에 기재. 숫자가 표에 보이면 반드시 추출. ':'';
       var userMsg=total>1
-        ?('이 PDF는 원본의 '+chunk.startPage+'~'+chunk.endPage+'페이지 부분입니다. 산업안전보건관리비 내용을 검토하고 JSON만 출력하세요.'+noteHint)
-        :'산업안전보건관리비 PDF 검토. 목적외 사용 최우선. JSON만 출력.'+noteHint;
+        ?('[전체'+totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] '+firstChunkHint+'이 페이지의 증빙서류를 빠짐없이 인식. 없는 증빙은 현페이지미확인. 문서재제출요구 금지. JSON만:'+jsonSchema+noteHint)
+        :'이 PDF 모든 증빙 확인. 집계표에서 계상액 투입률 반드시 추출. JSON만:'+jsonSchema+noteHint;
       return callApi(chunk.b64,userMsg).then(function(resp){
         if(!resp)return null;
         return resp.text().then(function(respText){

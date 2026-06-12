@@ -596,7 +596,12 @@ function setFile(f){
   document.getElementById('frow').style.display='flex';
   document.getElementById('run').disabled=false;
   var w=document.getElementById('warn-box');
-  if(f.size/1024/1024>20){w.style.display='block';w.textContent='파일이 크면 분석에 시간이 걸릴 수 있습니다. 100페이지 초과 시 자동으로 나눠서 분석합니다.';}
+  if(f.size/1024/1024>20){w.style.display='block';w.textContent=(function(){
+  var mb=(file?file.size/1024/1024:0).toFixed(1);
+  var pageEst=Math.ceil(parseFloat(mb)/0.35);
+  var chunks=Math.ceil(pageEst/10);
+  return '📄 파일: '+mb+'MB (약 '+pageEst+'페이지 추정) · '+chunks+'개 청크 병렬 분석 예정';
+}());}
   else w.style.display='none';
 }
 function resetFile(){
@@ -642,7 +647,7 @@ async function splitPdf(f){
   var PDFDocument=PDFLib.PDFDocument;
   var srcDoc=await PDFDocument.load(buf,{ignoreEncryption:true});
   var total=srcDoc.getPageCount();
-  var CHUNK=30; // 429 방지를 위해 50페이지 단위
+  var CHUNK=10; // 429 방지를 위해 50페이지 단위
   if(total<=CHUNK){
     var arr2=new Uint8Array(buf);
     var b64_2=btoa(Array.from(arr2).map(function(b){return String.fromCharCode(b);}).join(''));
@@ -776,6 +781,13 @@ async function callApi(b64,userMsg){
   }
   for(var attempt=1;attempt<=MAX_RETRY;attempt++){
     try{
+      // 청크 크기 체크 (base64 → 원본의 1.33배)
+      var b64SizeMB=(b64.length*0.75/1024/1024).toFixed(1);
+      console.log('청크 전송 크기: '+b64SizeMB+'MB');
+      if(parseFloat(b64SizeMB)>20){
+        console.warn('청크가 너무 큼 ('+b64SizeMB+'MB). 스킵.');
+        return null;
+      }
       var resp=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{
@@ -794,6 +806,7 @@ async function callApi(b64,userMsg){
           ]}]
         })
       });
+      console.log('청크 응답 상태:', resp.status);
       if(resp.status===429){
         if(attempt===MAX_RETRY)return resp;
         var w=Math.round(delay/1000);

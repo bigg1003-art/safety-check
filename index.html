@@ -659,19 +659,23 @@ async function splitPdf(f){
       var pp=await nd.copyPages(srcDoc,idxArr);
       pp.forEach(function(p){nd.addPage(p);});
       var bytes=await nd.save();
-      var b64=btoa(Array.from(new Uint8Array(bytes)).map(function(b){return String.fromCharCode(b);}).join(''));
+      var u8=new Uint8Array(bytes);var bin='';
+      for(var bp=0;bp<u8.length;bp+=32768){bin+=String.fromCharCode.apply(null,u8.subarray(bp,bp+32768));}
+      var b64=btoa(bin);
       var szMB=(bytes.length/1024/1024).toFixed(1);
       console.log('청크 '+sp+'~'+ep+'p: '+szMB+'MB');
       return {b64:b64,startPage:sp,endPage:ep,totalPages:total};
     }
 
     var chunks=[];
-    // 첫 페이지만 단독 추출 (메트릭 전용 - 항상 빠르고 정확)
-    chunks.push(await makeChunk([0],1,1));
-    chunks[0].isCover=true;
+    // 첫 페이지 단독 추출 (메트릭 전용)
+    var coverChunk=await makeChunk([0],1,1);
+    coverChunk.isCover=true;
+    chunks.push(coverChunk);
 
-    // 나머지 청크 (1페이지부터 CHUNK단위로)
-    for(var s=0;s<total;s+=CHUNK){
+    // 나머지 청크 (2페이지부터 시작 - 첫 페이지 중복 방지)
+    var bodyStart=(total>1)?1:0;
+    for(var s=bodyStart;s<total;s+=CHUNK){
       var e=Math.min(s+CHUNK,total);
       var idxArr=[];for(var k=s;k<e;k++)idxArr.push(k);
       var chunk=await makeChunk(idxArr,s+1,e);
@@ -775,7 +779,7 @@ async function getConfig(){
 }
 
 async function callApi(b64,userMsg){
-  var MAX_RETRY=4;var delay=15000;
+  var MAX_RETRY=4;var delay=12000;
   var cfg=await getConfig();
   var apiKey=cfg.anthropicKey||'';
   if(!apiKey){
@@ -786,9 +790,12 @@ async function callApi(b64,userMsg){
     document.getElementById('run').disabled=false;return null;
   }
   for(var attempt=1;attempt<=MAX_RETRY;attempt++){
+    var controller=new AbortController();
+    var timeoutId=setTimeout(function(){controller.abort();},120000); // 2분 타임아웃
     try{
       var resp=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
+        signal:controller.signal,
         headers:{
           'Content-Type':'application/json',
           'x-api-key':apiKey,
@@ -805,14 +812,24 @@ async function callApi(b64,userMsg){
           ]}]
         })
       });
-      if(resp.status===429){
+      clearTimeout(timeoutId);
+      // 429(한도) 503(과부하) 529(오버로드) 모두 재시도
+      if(resp.status===429||resp.status===503||resp.status===529){
         if(attempt===MAX_RETRY)return resp;
         var w=Math.round(delay/1000);
-        document.getElementById('lt').textContent='요청 한도 초과 — '+w+'초 후 재시도 ('+attempt+'/'+MAX_RETRY+')...';
-        await sleep(delay);delay=delay*2;continue;
+        var reason=resp.status===429?'요청한도':'서버과부하';
+        document.getElementById('lt').textContent=reason+' — '+w+'초 후 재시도 ('+attempt+'/'+MAX_RETRY+')...';
+        await sleep(delay);delay=Math.min(delay*2,60000);continue;
       }
       return resp;
-    }catch(e){if(attempt===MAX_RETRY)throw e;await sleep(5000);}
+    }catch(e){
+      clearTimeout(timeoutId);
+      if(e.name==='AbortError'){
+        document.getElementById('lt').textContent='응답 지연 — 재시도 ('+attempt+'/'+MAX_RETRY+')...';
+      }
+      if(attempt===MAX_RETRY)throw e;
+      await sleep(5000);
+    }
   }
 }
 
@@ -837,44 +854,51 @@ async function go(){
     var results=[];
     var doneCount=0;
     document.getElementById('lt').textContent=total>1?'총 '+total+'개 청크 동시 분석 중...':'AI 분석 중...';
-    var chunkPromises=chunks.map(function(chunk,ci){
-      // 개선노트 피드백 수집 (최근 5건)
-      var notes=getNotes().filter(function(n){return !n.done;}).slice(0,5).map(function(n){return n.content;}).join(' | ');
-      var noteHint=notes?' [미완료피드백: '+notes+']':'';
-      var isCover=chunk.isCover===true;  var isFirst=isCover||chunk.startPage===1;
-      var firstHint=isCover
-        ?'[집계표 전용 분석] 이 페이지는 산업안전보건관리비 사용내역서 표지입니다. 아래 항목을 metrics에 반드시 기재하세요. project=공사명(표 오른쪽 상단), period=2026년05월형식, total_amount=계상된안전관리비(₩숫자), current_amount=당월금액, usage_rate=비율%, process_rate=공정률%. 표에 숫자가 있으면 빈값 절대 금지. '
-        :isFirst?'첫청크: project,period,total_amount,usage_rate,process_rate 추출. ':''
-      var pageCtx=total>1?'[전체'+(chunk.totalPages||total*15)+'p 중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
-      var evidHint='이 페이지 증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 모두 인식. 없으면 현페이지미확인. 재제출요구금지. ';
-      var userMsg=pageCtx+firstHint+evidHint+'JSON만 출력.'+noteHint;
-      return callApi(chunk.b64,userMsg).then(function(resp){
-        if(!resp)return null;
-        return resp.text().then(function(respText){
-          doneCount++;
-          if(total>1)document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+total+'청크 완료)';
-          try{
-            var data=JSON.parse(respText);
-            if(!resp.ok)return null;
-            var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
-            if(!raw)return null;
-            var clean=raw.replace(/```json|```/g,'').trim();
-            var parsed=null;
-            try{parsed=JSON.parse(clean);}catch(e1){}
-            if(!parsed){var m=clean.match(/\{[\s\S]*\}/);if(m)try{parsed=JSON.parse(m[0]);}catch(e2){}}
-            if(parsed&&parsed.metrics){
-              // AI가 숫자로 반환한 metrics 값을 모두 문자열로 변환
-              Object.keys(parsed.metrics).forEach(function(k){
-                if(parsed.metrics[k]!==null&&parsed.metrics[k]!==undefined)
-                  parsed.metrics[k]=String(parsed.metrics[k]);
-              });
-            }
-            return parsed||null;
-          }catch(e){return null;}
-        });
-      }).catch(function(){return null;});
-    });
-    var chunkResults=await Promise.all(chunkPromises);
+    var results=[];
+    var doneCount=0;
+    var BATCH=2; // 동시 2개씩만 (429 방지)
+    for(var bi=0;bi<chunks.length;bi+=BATCH){
+      var batch=chunks.slice(bi,Math.min(bi+BATCH,chunks.length));
+      var batchPromises=batch.map(function(chunk){
+        var notes=getNotes().filter(function(n){return !n.done;}).slice(0,5).map(function(n){return n.content;}).join(' | ');
+        var noteHint=notes?' [미완료피드백: '+notes+']':'';
+        var isCover=chunk.isCover===true;
+        var isFirst=isCover||chunk.startPage===1;
+        var firstHint=isCover
+          ?'[집계표 전용 분석] 이 페이지는 산업안전보건관리비 사용내역서 표지입니다. metrics에 반드시 기재: project=공사명, period=2026년05월형식, total_amount=계상된안전관리비금액(숫자), current_amount=당월금액, usage_rate=투입률%, process_rate=공정률%. 표에숫자있으면빈값금지. '
+          :isFirst?'집계표에서 project,period,total_amount,usage_rate,process_rate 추출. ':'';
+        var pageCtx=chunk.isCover?'':(total>1?'[전체'+(chunk.totalPages||total)+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'');
+        var evidHint=isCover?'':'이 페이지 증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 모두 인식. 없으면 현페이지미확인. 재제출요구금지. ';
+        var userMsg=pageCtx+firstHint+evidHint+'JSON만 출력.'+noteHint;
+        return callApi(chunk.b64,userMsg).then(function(resp){
+          if(!resp)return null;
+          return resp.text().then(function(respText){
+            doneCount++;
+            document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+chunks.length+'청크)';
+            try{
+              var data=JSON.parse(respText);
+              if(!resp.ok)return null;
+              var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
+              if(!raw)return null;
+              var clean=raw.replace(/```json|```/g,'').trim();
+              var parsed=null;
+              try{parsed=JSON.parse(clean);}catch(e1){}
+              if(!parsed){var mm=clean.match(/\{[\s\S]*\}/);if(mm)try{parsed=JSON.parse(mm[0]);}catch(e2){}}
+              if(parsed&&parsed.metrics){Object.keys(parsed.metrics).forEach(function(k){if(parsed.metrics[k]!=null)parsed.metrics[k]=String(parsed.metrics[k]);});}
+              return parsed||null;
+            }catch(e){return null;}
+          });
+        }).catch(function(){return null;});
+      });
+      var batchRes=await Promise.all(batchPromises);
+      batchRes.forEach(function(r){if(r)results.push(r);});
+      setProgress(Math.min(bi+BATCH,chunks.length),chunks.length);
+      // 배치 간 대기 (마지막 제외)
+      if(bi+BATCH<chunks.length){
+        document.getElementById('lt').textContent='Rate Limit 방지 대기 중... ('+doneCount+'/'+chunks.length+')';
+        await sleep(4000);
+      }
+    }
     results=chunkResults.filter(function(r){return r!==null;})
     setProgress(total,total);
     if(!results.length){

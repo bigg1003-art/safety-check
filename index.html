@@ -1294,13 +1294,13 @@ function renderList(){
   var q=(document.getElementById('list-q').value||'').toLowerCase();
   var rs=getRes();
   if(q)rs=rs.filter(function(r){
-    return(r.metrics&&r.metrics.project||'').toLowerCase().indexOf(q)>=0
+    return(r.metrics&&(r.metrics.project||r.project)||'').toLowerCase().indexOf(q)>=0
       ||(r.metrics&&r.metrics.period||'').toLowerCase().indexOf(q)>=0;
   });
   var lb=document.getElementById('list-body');
   lb.innerHTML='';
   if(!rs.length){
-    lb.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);">저장된 검토 결과가 없습니다.</div>';
+    lb.innerHTML='<div style="text-align:center;padding:48px;color:var(--text3);"><div style="font-size:32px;margin-bottom:10px;">📋</div>저장된 검토 결과가 없습니다</div>';
     return;
   }
   rs.forEach(function(r){
@@ -1309,42 +1309,45 @@ function renderList(){
     var mis=(r.misuse_check&&r.misuse_check.overall_status)||'확인불가';
     var gui=(r.guideline_compliance&&r.guideline_compliance.overall_status)||'확인불가';
     var dt=r.analyzedAt?new Date(r.analyzedAt).toLocaleDateString('ko-KR'):'—';
-    // 카드 생성
     var card=document.createElement('div');
     card.className='li';
+    // 카드 HTML (id 포함)
     card.innerHTML=
-      '<div class="li-top">'
-      +'<div>'
-        +'<div class="li-ttl"></div>'
-        +'<div class="li-sub"><span>'+xe(m.period||'기간 미확인')+'</span><span>·</span><span>'+dt+' 검토</span></div>'
-      +'</div>'
-      +'<span class="chip '+cc(ov)+'" style="font-size:12px;">'+ov+'</span>'
-      +'</div>'
-      +'<div class="li-meta">'
-        +'<div class="lm"><div class="lm-l">계상 총액</div><div class="lm-v">'+xe(m.total_amount)+'</div></div>'
-        +'<div class="lm"><div class="lm-l">투입률</div><div class="lm-v">'+xe(m.usage_rate)+'</div></div>'
-        +'<div class="lm"><div class="lm-l">목적외 사용</div><div class="lm-v"><span class="chip '+cc(mis)+'" style="font-size:11px;">'+mis+'</span></div></div>'
-        +'<div class="lm"><div class="lm-l">지침 준수</div><div class="lm-v"><span class="chip '+cc(gui)+'" style="font-size:11px;">'+gui+'</span></div></div>'
-      +'</div>'
-      +'<div class="li-acts">'
-        +'<button class="bsm bsm-v" data-view="'+r.id+'">📋 결과 보기</button>'
-        +'<button class="bsm bsm-d" data-del-res="'+r.id+'">🗑 삭제</button>'
-      +'</div>';
-    // 현장명 + 편집 버튼
+      '<div class="li-top">'+
+        '<div>'+
+          '<div class="li-ttl"></div>'+
+          '<div class="li-sub"><span>'+(xe(m.period||'기간 미확인'))+'</span><span>·</span><span>'+dt+' 검토</span></div>'+
+        '</div>'+
+        '<span class="chip '+cc(ov)+'" style="font-size:12px;">'+ov+'</span>'+
+      '</div>'+
+      '<div class="li-meta">'+
+        '<div class="lm"><div class="lm-l">계상 총액</div><div class="lm-v" id="lm-ta-'+r.id+'">'+xe(m.total_amount||'—')+'</div></div>'+
+        '<div class="lm"><div class="lm-l">투입률</div><div class="lm-v" id="lm-ur-'+r.id+'">'+xe(m.usage_rate||'—')+'</div></div>'+
+        '<div class="lm"><div class="lm-l">목적외 사용</div><div class="lm-v"><span class="chip '+cc(mis)+'" style="font-size:11px;">'+mis+'</span></div></div>'+
+        '<div class="lm"><div class="lm-l">지침 준수</div><div class="lm-v"><span class="chip '+cc(gui)+'" style="font-size:11px;">'+gui+'</span></div></div>'+
+      '</div>'+
+      '<div class="li-acts">'+
+        '<button class="bsm bsm-v" data-view="'+r.id+'">📋 결과 보기</button>'+
+        '<button class="bsm bsm-d" data-del-res="'+r.id+'">🗑 삭제</button>'+
+      '</div>';
+    // 현장명
     var ttl=card.querySelector('.li-ttl');
-    ttl.appendChild(document.createTextNode(xe(m.project||'현장명 미확인')));
-    function mkBtn(label,field,targetEl){
-      var btn=document.createElement('span');
-      btn.textContent=' ✏'; btn.title=label+' 수정';
-      btn.style.cssText='font-size:10px;color:var(--text3);cursor:pointer;margin-left:3px;';
-      btn.onmouseenter=function(){this.style.color='var(--navy)';};
-      btn.onmouseleave=function(){this.style.color='var(--text3)';};
-      (function(rid,f){btn.onclick=function(e){e.stopPropagation();editField(rid,f);};})(r.id,field);
-      targetEl.appendChild(btn);
+    ttl.appendChild(document.createTextNode(m.project||r.project||'현장명 미확인'));
+    // 편집 버튼 생성 함수
+    function mkE(label,field,el){
+      if(!el)return;
+      var btn=document.createElement('button');
+      btn.textContent='수정';
+      btn.title=label+' 수정';
+      btn.style.cssText='font-size:10px;color:var(--navy);background:none;border:1px solid var(--navy);border-radius:3px;padding:0 5px;cursor:pointer;margin-left:6px;opacity:.7;vertical-align:middle;';
+      btn.onmouseenter=function(){this.style.opacity='1';};
+      btn.onmouseleave=function(){this.style.opacity='.7';};
+      (function(id,f){btn.onclick=function(e){e.stopPropagation();editField(id,f);};})(r.id,field);
+      el.appendChild(btn);
     }
-    mkBtn('현장명','project',ttl);
-    var taEl=card.querySelector('#lm-ta-'+r.id);if(taEl)mkBtn('계상 총액','total_amount',taEl);
-    var urEl=card.querySelector('#lm-ur-'+r.id);if(urEl)mkBtn('투입률','usage_rate',urEl);
+    mkE('현장명','project',ttl);
+    mkE('계상 총액','total_amount',card.querySelector('#lm-ta-'+r.id));
+    mkE('투입률','usage_rate',card.querySelector('#lm-ur-'+r.id));
     lb.appendChild(card);
   });
 }

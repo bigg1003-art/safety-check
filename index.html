@@ -795,7 +795,7 @@ async function callApi(b64,userMsg){
         },
         body:JSON.stringify({
           model:'claude-haiku-4-5',
-          max_tokens:3000,
+          max_tokens:2000,
           system:SYS,
           messages:[{role:'user',content:[
             {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
@@ -840,12 +840,11 @@ async function go(){
       // 개선노트 피드백 수집 (최근 5건)
       var notes=getNotes().slice(0,5).map(function(n){return n.content;}).join(' | ');
       var noteHint=notes?'\n[이전 피드백/개선사항]: '+notes:'';
-      var jsonSchema='{"overall":"적정|주의|부적정","summary":"3줄이내","progress_review":"공정률대비집행률","items_summary":"항목별집행금액","metrics":{"total_amount":"계상액숫자","usage_rate":"투입률%","period":"YYYY년MM월","project":"현장명","prev_cumulative":"전월누계","current_amount":"당월금액","subtotal":"소계","balance":"잔액","process_rate":"공정률%","remarks":""},"quick_verdict":{"violations":[],"warnings":[],"goods":[]},"misuse_check":{"overall_status":"이상없음|의심항목있음|목적외사용확인|확인불가","total_suspicious_amount":"","items":[{"item_name":"","vendor":"","page_ref":"","amount":"","reason":"","severity":"경미|주의|위반","legal_basis":""}],"opinion":""},"guideline_compliance":{"overall_status":"준수|일부위반|위반|확인불가","items":[{"category":"","vendor":"","page_ref":"","standard":"","actual":"","status":"준수|위반|주의|확인불가","action":""}],"opinion":""},"tax_invoice_check":{"status":"일치|불일치|일부불일치|현페이지미확인","items":[{"vendor":"","amount":"","status":"일치|불일치|현페이지미확인","page_ref":"","note":""}],"opinion":""},"ppe_ledger_check":{"status":"적정|미흡|누락|확인불가","items":[{"ppe_name":"","quantity":"","page_ref":"","status":"적정|미흡|누락","note":""}],"opinion":""},"action_required":[{"priority":"긴급|일반","item":"문서재제출제외한실질조치만","vendor":"","page_ref":"","deadline":"즉시|1주|1개월"}],"issues":[{"level":"위반|주의|양호","content":"","page_ref":""}],"recommendations":""}';
       var isFirstChunk=(ci===0);
-      var firstChunkHint=isFirstChunk?'[첫페이지 필수작업] 집계표(사용내역서)에서 계상된안전관리비(total_amount), 당월집행금액(current_amount), 누계투입률(usage_rate), 공정률(process_rate), 현장명(project), 기간(period)을 반드시 추출하여 metrics에 기재. 숫자가 표에 보이면 반드시 추출. ':'';
-      var userMsg=total>1
-        ?('[전체'+totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] '+firstChunkHint+'이 페이지의 증빙서류를 빠짐없이 인식. 없는 증빙은 현페이지미확인. 문서재제출요구 금지. JSON만:'+jsonSchema+noteHint)
-        :'이 PDF 모든 증빙 확인. 집계표에서 계상액 투입률 반드시 추출. JSON만:'+jsonSchema+noteHint;
+      var pageInfo=total>1?'[전체'+totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
+      var firstHint=isFirstChunk?'집계표에서 total_amount(계상액),current_amount(당월),usage_rate(투입률%),process_rate(공정률%),project(현장명),period(기간) 반드시 추출. ':'';
+      var evidenceHint='증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 인식. 없으면 현페이지미확인. 재제출요구 금지. ';
+      var userMsg=pageInfo+firstHint+evidenceHint+'JSON만 출력.'+noteHint;
       return callApi(chunk.b64,userMsg).then(function(resp){
         if(!resp)return null;
         return resp.text().then(function(respText){
@@ -861,15 +860,20 @@ async function go(){
             return m?JSON.parse(m[0]):null;
           }catch(e){return null;}
         });
-      }).catch(function(){return null;});
+      }).catch(function(e){console.error('청크 오류:',e);return null;});
     });
     var chunkResults=await Promise.all(chunkPromises);
     results=chunkResults.filter(function(r){return r!==null;})
     setProgress(total,total);
     if(!results.length){
       stopLd();document.getElementById('ld').style.display='none';
-      showErr('분석 실패','유효한 결과를 얻지 못했습니다. 다시 시도해주세요.',null);
+      var failMsg='모든 청크 분석 실패. 원인: (1)파일이 너무 큼 (2)API 키 오류 (3)네트워크 오류\n\n해결방법: PDF 페이지 수를 줄이거나 다시 시도해주세요.';
+      showErr('분석 실패',failMsg,null);
       document.getElementById('run').disabled=false;return;
+    }
+    // 일부 청크만 성공해도 진행 (부분 결과 허용)
+    if(results.length<total){
+      console.warn('일부 청크 실패: '+results.length+'/'+total+' 성공');
     }
     document.getElementById('lt').textContent='결과 종합 중...';
     var d=mergeResults(results);

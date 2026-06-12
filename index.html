@@ -6,6 +6,8 @@
 <title>(주)대광건영 산업안전보건관리비 검토 시스템</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
@@ -600,7 +602,7 @@ function setFile(f){
   var mb=(file?file.size/1024/1024:0).toFixed(1);
   var pageEst=Math.ceil(parseFloat(mb)/0.35);
   var chunks=Math.ceil(pageEst/10);
-  return '📄 파일: '+mb+'MB (약 '+pageEst+'페이지 추정) · '+chunks+'개 청크 병렬 분석 예정';
+  return '📄 파일: '+mb+'MB · 약 '+pageEst+'페이지 · '+chunks+'개 배치 분석 예정 (이미지 압축 전송)';
 }());}
   else w.style.display='none';
 }
@@ -637,119 +639,67 @@ function setProgress(cur,total){
 
 var SYS="건설현장 산업안전보건관리비 전문 검토위원. 산업안전보건법 및 고용노동부 고시 기준 검토.\n[절대 금지] 문서재제출 요구 금지. 현재 페이지에 없는 증빙은 현페이지미확인. 미첨부 단정 금지.\n[최우선] 집계표(사용내역서 표지)에서 계상액(total_amount), 당월집행액(current_amount), 누계투입률(usage_rate), 공정률(process_rate), 현장명(project), 기간(period) 반드시 추출.\n[증빙인식] 세금계산서=공급자+부가세+작성일 포함 문서. 거래명세서=품목+수량+단가+금액 표. 급여명세서=성명+급여항목+지급총액. 개인보호구지급대장=보호구종류+지급일+서명란 대장.\n[인건비] 안전관리자 보건관리자 급여명세서 있으면 적정. 안전반장은 안전시설비 항목 정산 적정.\n[사내지침] 안전모:직원19000이하 근로자7000이하 보안경부착14000이하 1회채용시 / 안전벨트:직원전체식85000이하 근로자50000이하 1회채용시 / 안전화:상한80000이하 6개월\n[목적외금지] 일반공사자재 복리후생 격려금포상금 허위청구 안전무관사무용품\n[출력] 순수JSON만. 마크다운없음. {overall,summary,progress_review,items_summary,metrics:{total_amount,usage_rate,period,project,prev_cumulative,current_amount,subtotal,balance,process_rate,remarks},quick_verdict:{violations[],warnings[],goods[]},misuse_check:{overall_status,total_suspicious_amount,items[{item_name,vendor,page_ref,amount,reason,severity,legal_basis}],opinion},guideline_compliance:{overall_status,items[{category,vendor,page_ref,standard,actual,status,action}],opinion},tax_invoice_check:{status,items[{vendor,amount,status,page_ref,note}],opinion},ppe_ledger_check:{status,items[{ppe_name,quantity,page_ref,status,note}],opinion},action_required[{priority,item,vendor,page_ref,deadline}],issues[{level,content,page_ref}],recommendations}";
 
-async function splitPdf(f){
-  var buf=await f.arrayBuffer();
-  if(!window.PDFLib){
-    var arr=new Uint8Array(buf);
-    var b64=btoa(Array.from(arr).map(function(b){return String.fromCharCode(b);}).join(''));
-    return [{b64:b64,startPage:1,endPage:'전체'}];
-  }
-  var PDFDocument=PDFLib.PDFDocument;
-  var srcDoc=await PDFDocument.load(buf,{ignoreEncryption:true});
-  var total=srcDoc.getPageCount();
-  var CHUNK=10; // 429 방지를 위해 50페이지 단위
-  if(total<=CHUNK){
-    var arr2=new Uint8Array(buf);
-    var b64_2=btoa(Array.from(arr2).map(function(b){return String.fromCharCode(b);}).join(''));
-    return [{b64:b64_2,startPage:1,endPage:total}];
-  }
+async function splitPdf(arrayBuffer){
+  // pdf.js로 페이지를 저해상도 JPEG로 렌더링 (파일 크기 10분의 1)
   var chunks=[];
-  for(var start=0;start<total;start+=CHUNK){
-    var end=Math.min(start+CHUNK,total);
-    var newDoc=await PDFDocument.create();
-    var idxs=[];for(var k=start;k<end;k++)idxs.push(k);
-    var pages=await newDoc.copyPages(srcDoc,idxs);
-    pages.forEach(function(p){newDoc.addPage(p);});
-    var bytes=await newDoc.save();
-    var b64c=btoa(Array.from(new Uint8Array(bytes)).map(function(b){return String.fromCharCode(b);}).join(''));
-    chunks.push({b64:b64c,startPage:start+1,endPage:end});
+  try{
+    var pdfDoc=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    var totalPages=pdfDoc.numPages;
+    var CHUNK_SIZE=10; // splitPdf 내부에서 CHUNK=10 사용 // 10페이지씩
+    var scale=1.2; // 해상도 (150 DPI 상당 - 텍스트 인식에 충분)
+    document.getElementById('lt').textContent='PDF 렌더링 중... (총 '+totalPages+'페이지)';
+    for(var start=1;start<=totalPages;start+=CHUNK){
+      var end=Math.min(start+CHUNK-1,totalPages);
+      var images=[];
+      for(var p=start;p<=end;p++){
+        var page=await pdfDoc.getPage(p);
+        var viewport=page.getViewport({scale:scale});
+        var canvas=document.createElement('canvas');
+        canvas.width=viewport.width;
+        canvas.height=viewport.height;
+        var ctx=canvas.getContext('2d');
+        await page.render({canvasContext:ctx,viewport:viewport}).promise;
+        // JPEG 압축 (0.7 품질 - 텍스트 인식 충분)
+        var imgData=canvas.toDataURL('image/jpeg',0.7);
+        images.push(imgData.split(',')[1]); // base64만 추출
+        canvas.remove();
+        document.getElementById('lt').textContent='렌더링 중... '+p+'/'+totalPages+'페이지';
+      }
+      var szKB=Math.round(images.reduce(function(acc,img){return acc+img.length;},0)*0.75/1024);
+      console.log('청크 '+start+'~'+end+'p: '+szKB+'KB ('+images.length+'개 이미지)');
+      chunks.push({startPage:start,endPage:end,images:images,type:'images'});
+    }
+  }catch(imgErr){
+    console.warn('pdf.js 렌더링 실패, PDF 방식으로 폴백:', imgErr.message);
+    // 폴백: pdf-lib 방식
+    var fallbackChunks=await splitPdfFallback(arrayBuffer);
+    return fallbackChunks;
   }
   return chunks;
 }
 
-function mergeResults(arr){
-  if(arr.length===1)return arr[0];
-  var ORDER_OV=['부적정','주의','적정','확인불가'];
-  var ORDER_ST=['목적외사용확인','위반','불일치','누락','의심항목있음','일부위반','일부불일치','미흡','주의','이상없음','준수','일치','적정','양호','확인불가'];
-  function worstOv(a,b){var ai=ORDER_OV.indexOf(a),bi=ORDER_OV.indexOf(b);return(ai>=0&&(ai<bi||bi<0))?a:b;}
-  function worstSt(a,b){var ai=ORDER_ST.indexOf(a),bi=ORDER_ST.indexOf(b);return(ai>=0&&(ai<bi||bi<0))?a:b;}
-  var base=arr[0];
-  var merged={
-    overall:arr.reduce(function(a,r){return worstOv(a,r.overall||'적정');},'적정'),
-    summary:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.summary||'');}).join(' '),
-    metrics:base.metrics||{},
-    items_review:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.items_review||'');}).join('\n'),
-    misuse_check:{
-      overall_status:arr.reduce(function(a,r){return worstSt(a,r.misuse_check&&r.misuse_check.overall_status||'확인불가');},'이상없음'),
-      total_suspicious_amount:'전체 청크 합산',
-      items:arr.reduce(function(a,r){return a.concat(r.misuse_check&&r.misuse_check.items||[]);},[]),
-      opinion:arr.map(function(r){return r.misuse_check&&r.misuse_check.opinion||'';}).filter(Boolean).join(' ')
-    },
-    guideline_compliance:{
-      overall_status:arr.reduce(function(a,r){return worstSt(a,r.guideline_compliance&&r.guideline_compliance.overall_status||'확인불가');},'준수'),
-      items:arr.reduce(function(a,r){return a.concat(r.guideline_compliance&&r.guideline_compliance.items||[]);},[]),
-      opinion:arr.map(function(r){return r.guideline_compliance&&r.guideline_compliance.opinion||'';}).filter(Boolean).join(' ')
-    },
-    tax_invoice_check:{
-      status:arr.reduce(function(a,r){return worstSt(a,r.tax_invoice_check&&r.tax_invoice_check.status||'확인불가');},'일치'),
-      tax_invoice_detail:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.tax_invoice_detail||'';}).filter(Boolean).join(' / '),
-      statement_detail:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.statement_detail||'';}).filter(Boolean).join(' / '),
-      discrepancy:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.discrepancy||'';}).filter(function(v){return v&&v!=='없음';}).join(' / ')||'없음',
-      opinion:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.opinion||'';}).filter(Boolean).join(' ')
-    },
-    ppe_ledger_check:{
-      status:arr.reduce(function(a,r){return worstSt(a,r.ppe_ledger_check&&r.ppe_ledger_check.status||'확인불가');},'적정'),
-      items:arr.reduce(function(a,r){return a.concat(r.ppe_ledger_check&&r.ppe_ledger_check.items||[]);},[]),
-      opinion:arr.map(function(r){return r.ppe_ledger_check&&r.ppe_ledger_check.opinion||'';}).filter(Boolean).join(' ')
-    },
-    issues:arr.reduce(function(a,r){return a.concat(r.issues||[]);},[]),
-    recommendations:arr.map(function(r){return r.recommendations||'';}).filter(Boolean).join(' ')
-  };
-  var seen={};
-  merged.issues=merged.issues.filter(function(iss){var k=iss.level+iss.content;if(seen[k])return false;seen[k]=true;return true;});
-
-  // tax_invoice: 현페이지미확인 제거 → 실제 확인된 것만 유지
-  if(merged.tax_invoice_check&&merged.tax_invoice_check.items){
-    merged.tax_invoice_check.items=merged.tax_invoice_check.items.filter(function(item){
-      return item.status!=='현페이지미확인';
-    });
-    var taxItems=merged.tax_invoice_check.items;
-    var anyBadTax=taxItems.some(function(e){return e.status==='불일치';});
-    var allOkTax=taxItems.length>0&&taxItems.every(function(e){return e.status==='일치';});
-    merged.tax_invoice_check.status=taxItems.length===0?'확인불가':anyBadTax?'불일치':allOkTax?'일치':'일부불일치';
-  }
-  // issues: 증빙 확인불가 오류 제거
-  if(merged.issues){
-    merged.issues=merged.issues.filter(function(iss){
-      return iss.content&&!iss.content.includes('현페이지미확인');
-    });
-  }
-  
-  // action_required: 재제출/전체제출 불필요 항목 제거
-  if(merged.action_required){
-    merged.action_required=merged.action_required.filter(function(a){
-      var item=a.item||'';
-      return !item.includes('재제출')&&!item.includes('전체 제출')&&!item.includes('일괄 제시')&&item.length>2;
-    });
-  }
-  // metrics: 모든 청크 결과에서 비어있는 값 채우기
-  arr.forEach(function(r){
-    if(!r||!r.metrics)return;
-    var keys=['total_amount','usage_rate','period','project','prev_cumulative','current_amount','subtotal','balance','process_rate'];
-    keys.forEach(function(k){
-      var cur=merged.metrics[k];
-      var src=r.metrics[k];
-      if(src&&src!=='미확인'&&src!=='--'&&src!==''&&(!cur||cur==='미확인'||cur==='--'||cur===''))
-        merged.metrics[k]=src;
-    });
-  });
-return merged;
+async function splitPdfFallback(arrayBuffer){
+  // 기존 pdf-lib 방식 (폴백용)
+  var chunks=[];
+  try{
+    var pdfDoc=await PDFDocument.load(arrayBuffer,{ignoreEncryption:true});
+    var totalPages=pdfDoc.getPageCount();
+    var CHUNK_SIZE=10; // splitPdf 내부에서 CHUNK=10 사용
+    for(var start=0;start<totalPages;start+=CHUNK){
+      var end=Math.min(start+CHUNK,totalPages);
+      var newDoc=await PDFDocument.create();
+      var indices=[];
+      for(var i=start;i<end;i++)indices.push(i);
+      var copied=await newDoc.copyPages(pdfDoc,indices);
+      copied.forEach(function(p){newDoc.addPage(p);});
+      var bytes=await newDoc.save();
+      var b64=btoa(String.fromCharCode.apply(null,new Uint8Array(bytes)));
+      chunks.push({startPage:start+1,endPage:end,b64:b64,type:'pdf'});
+    }
+  }catch(e){console.error('폴백도 실패:',e);}
+  return chunks;
 }
 
-function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-
-// 설정 캐시 (세션 1회만 서버에서 가져옴)
-var _cfg=null;
 async function getConfig(){
   if(_cfg)return _cfg;
   if(window.location.protocol==='file:'){
@@ -768,7 +718,7 @@ async function getConfig(){
   }catch(e){return {anthropicKey:'',firebase:null};}
 }
 
-async function callApi(b64,userMsg){
+async function callApi(b64,userMsg,images){
   var MAX_RETRY=4;var delay=15000;
   var cfg=await getConfig();
   var apiKey=cfg.anthropicKey||'';
@@ -781,12 +731,14 @@ async function callApi(b64,userMsg){
   }
   for(var attempt=1;attempt<=MAX_RETRY;attempt++){
     try{
-      // 청크 크기 체크 (base64 → 원본의 1.33배)
-      var b64SizeMB=(b64.length*0.75/1024/1024).toFixed(1);
-      console.log('청크 전송 크기: '+b64SizeMB+'MB');
-      if(parseFloat(b64SizeMB)>20){
-        console.warn('청크가 너무 큼 ('+b64SizeMB+'MB). 스킵.');
-        return null;
+      // 청크 크기 체크
+      if(images&&images.length){
+        var imgSizeKB=Math.round(images.reduce(function(acc,img){return acc+img.length;},0)*0.75/1024);
+        console.log('청크 이미지 크기: '+imgSizeKB+'KB ('+images.length+'페이지)');
+      } else if(b64){
+        var b64SizeMB=(b64.length*0.75/1024/1024).toFixed(1);
+        console.log('청크 PDF 크기: '+b64SizeMB+'MB');
+        if(parseFloat(b64SizeMB)>20){console.warn('청크 너무 큼, 스킵');return null;}
       }
       var resp=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
@@ -800,10 +752,11 @@ async function callApi(b64,userMsg){
           model:'claude-haiku-4-5',
           max_tokens:2000,
           system:SYS,
-          messages:[{role:'user',content:[
-            {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
-            {type:'text',text:userMsg}
-          ]}]
+          messages:[{role:'user',content:
+            (images&&images.length)?
+              images.map(function(img){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}};}).concat([{type:'text',text:userMsg}]):
+              [{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:userMsg}]
+          }]
         })
       });
       console.log('청크 응답 상태:', resp.status);
@@ -836,7 +789,7 @@ async function go(){
       document.getElementById('run').disabled=false;return;
     }
     var total=chunks.length;
-    var totalPages=chunks.length>0?(chunks[chunks.length-1].endPage||0):0;
+    var totalPages=chunks.length>0?(chunks[chunks.length-1].endPage||chunks.length*10):0;
     var results=[];
     var doneCount=0;
     var results=[];
@@ -854,7 +807,7 @@ async function go(){
         var notes=getNotes().slice(0,3).map(function(n){return n.content;}).join(' | ');
         var noteHint=notes?'\n[피드백]: '+notes:'';
         var userMsg=pageInfo+firstHint+evidenceHint+'JSON만 출력.'+noteHint;
-        return callApi(chunk.b64,userMsg).then(function(resp){
+        return callApi(chunk.b64,userMsg,chunk.images).then(function(resp){
           if(!resp)return null;
           return resp.text().then(function(respText){
             doneCount++;

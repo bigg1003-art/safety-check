@@ -1339,6 +1339,31 @@ function renderList(){
     editBtn.onmouseleave=function(){this.style.color='var(--text3)';};
     editBtn.onclick=function(e){e.stopPropagation();editField(r.id,'project');};
     ttl.appendChild(editBtn);
+
+    // 계상총액 편집 버튼
+    var taEl=card.querySelector('#lm-ta-'+r.id);
+    if(taEl){
+      var taBtn=document.createElement('span');
+      taBtn.textContent=' ✏';taBtn.title='계상 총액 수정';
+      taBtn.style.cssText='font-size:10px;color:var(--text3);cursor:pointer;margin-left:3px;';
+      taBtn.onmouseenter=function(){this.style.color='var(--navy)';};
+      taBtn.onmouseleave=function(){this.style.color='var(--text3)';};
+      taBtn.onclick=function(e){e.stopPropagation();editField(r.id,'total_amount');};
+      taEl.appendChild(taBtn);
+    }
+
+    // 투입률 편집 버튼
+    var urEl=card.querySelector('#lm-ur-'+r.id);
+    if(urEl){
+      var urBtn=document.createElement('span');
+      urBtn.textContent=' ✏';urBtn.title='투입률 수정';
+      urBtn.style.cssText='font-size:10px;color:var(--text3);cursor:pointer;margin-left:3px;';
+      urBtn.onmouseenter=function(){this.style.color='var(--navy)';};
+      urBtn.onmouseleave=function(){this.style.color='var(--text3)';};
+      urBtn.onclick=function(e){e.stopPropagation();editField(r.id,'usage_rate');};
+      urEl.appendChild(urBtn);
+    }
+
     lb.appendChild(card);
   });
 }
@@ -1497,7 +1522,7 @@ function editField(id, field){
   var ridx=rs.findIndex(function(x){return x.id===id;});
   if(ridx<0)return;
   var r=rs[ridx];
-  var labels={project:'현장명',period:'기간',overall:'판정'};
+  var labels={project:'현장명',period:'기간',overall:'판정',total_amount:'계상 총액',usage_rate:'투입률',process_rate:'공정률'};
   var cur_val='';
   if(r.metrics&&r.metrics[field]!==undefined) cur_val=r.metrics[field];
   else if(r[field]!==undefined) cur_val=r[field];
@@ -1512,10 +1537,13 @@ function editField(id, field){
     fbSave(rs).then(function(){
       _localResults=rs;
       renderList();
+      renderDash(); // 월별 집행 현황도 반영
       alert('✅ ['+new_val+'] 으로 수정되었습니다!');
     });
   }else{
-    putRes(rs);renderList();
+    putRes(rs);
+    renderList();
+    renderDash(); // 월별 집행 현황도 반영
     alert('✅ ['+new_val+'] 으로 수정되었습니다!');
   }
 }

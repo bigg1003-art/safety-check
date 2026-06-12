@@ -839,38 +839,50 @@ async function go(){
     var totalPages=chunks.length>0?(chunks[chunks.length-1].endPage||0):0;
     var results=[];
     var doneCount=0;
-    document.getElementById('lt').textContent=total>1?'총 '+total+'개 청크 동시 분석 중...':'AI 분석 중...';
-    var chunkPromises=chunks.map(function(chunk,ci){
-      // 개선노트 피드백 수집 (최근 5건)
-      var notes=getNotes().slice(0,5).map(function(n){return n.content;}).join(' | ');
-      var noteHint=notes?'\n[이전 피드백/개선사항]: '+notes:'';
-      var isFirstChunk=(ci===0);
-      var pageInfo=total>1?'[전체'+totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
-      var firstHint=isFirstChunk?'집계표에서 total_amount(계상액),current_amount(당월),usage_rate(투입률%),process_rate(공정률%),project(현장명),period(기간) 반드시 추출. ':'';
-      var evidenceHint='증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 인식. 없으면 현페이지미확인. 재제출요구 금지. ';
-      var userMsg=pageInfo+firstHint+evidenceHint+'JSON만 출력.'+noteHint;
-      return callApi(chunk.b64,userMsg).then(function(resp){
-        if(!resp)return null;
-        return resp.text().then(function(respText){
-          doneCount++;
-          if(total>1)document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+total+'청크 완료)';
-          try{
-            var data=JSON.parse(respText);
-            if(!resp.ok)return null;
-            var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
-            if(!raw)return null;
-            var clean=raw.replace(/```json[\s\S]*?```/g,function(m){return m.slice(7,-3);}).replace(/```/g,'').trim();
-            try{return JSON.parse(clean);}catch(e1){}
-            var s=clean.indexOf('{');var e=clean.lastIndexOf('}');
-            if(s>=0&&e>s){try{return JSON.parse(clean.substring(s,e+1));}catch(e2){}}
-            console.warn('파싱실패:',raw.substring(0,200));
-            return null;
-          }catch(e){console.error('오류:',e);return null;}
-        });
-      }).catch(function(e){console.error('청크 오류:',e);return null;});
-    });
-    var chunkResults=await Promise.all(chunkPromises);
-    results=chunkResults.filter(function(r){return r!==null;})
+    var results=[];
+    var BATCH=3; // 한 번에 3개씩 처리
+    document.getElementById('lt').textContent='총 '+total+'개 청크 분석 중... (배치 처리)';
+
+    for(var b=0;b<total;b+=BATCH){
+      var batchChunks=chunks.slice(b,Math.min(b+BATCH,total));
+      var batchPromises=batchChunks.map(function(chunk,bi){
+        var ci=b+bi;
+        var isFirstChunk=(ci===0);
+        var pageInfo=total>1?'[전체'+totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
+        var firstHint=isFirstChunk?'집계표에서 total_amount(계상액),current_amount(당월),usage_rate(투입률%),process_rate(공정률%),project(현장명),period(기간) 반드시 추출. ':'';
+        var evidenceHint='증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 인식. 없으면 현페이지미확인. 재제출요구 금지. ';
+        var notes=getNotes().slice(0,3).map(function(n){return n.content;}).join(' | ');
+        var noteHint=notes?'\n[피드백]: '+notes:'';
+        var userMsg=pageInfo+firstHint+evidenceHint+'JSON만 출력.'+noteHint;
+        return callApi(chunk.b64,userMsg).then(function(resp){
+          if(!resp)return null;
+          return resp.text().then(function(respText){
+            doneCount++;
+            document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+total+'청크 완료)';
+            try{
+              var data=JSON.parse(respText);
+              if(!resp.ok)return null;
+              var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
+              if(!raw)return null;
+              var clean=raw.replace(/```json[\s\S]*?```/g,function(m){return m.slice(7,-3);}).replace(/```/g,'').trim();
+              try{return JSON.parse(clean);}catch(e1){}
+              var s=clean.indexOf('{');var e=clean.lastIndexOf('}');
+              if(s>=0&&e>s){try{return JSON.parse(clean.substring(s,e+1));}catch(e2){}}
+              console.warn('청크'+ci+' 파싱실패:',raw.substring(0,200));
+              return null;
+            }catch(e){console.error('청크'+ci+' 오류:',e);return null;}
+          });
+        }).catch(function(e){console.error('청크'+ci+' 네트워크오류:',e);return null;});
+      });
+      var batchResults=await Promise.all(batchPromises);
+      batchResults.forEach(function(r){if(r!==null&&typeof r==='object')results.push(r);});
+      // 배치 간 딜레이 (마지막 배치 제외)
+      if(b+BATCH<total){
+        document.getElementById('lt').textContent='배치 완료 ('+Math.min(b+BATCH,total)+'/'+total+') · 다음 배치 준비 중...';
+        await sleep(3000);
+      }
+    }
+    console.log('최종 결과: '+results.length+'/'+total+'개 성공');
     setProgress(total,total);
     if(!results.length){
       stopLd();document.getElementById('ld').style.display='none';

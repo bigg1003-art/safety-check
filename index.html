@@ -6,8 +6,6 @@
 <title>(주)대광건영 산업안전보건관리비 검토 시스템</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
@@ -238,7 +236,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
       <div id="credit-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:5px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.2);cursor:pointer;" onclick="fetchCredit()" title="클릭하여 사용량 확인 / 초기화">
         💳 <span id="credit-val">잔액 확인 중...</span>
       </div>
-      <div class="ver-badge">v5.0</div>
+      <div class="ver-badge">v5.1</div>
     </div>
   </div>
 </header>
@@ -527,18 +525,27 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
 function goTab(t){
   var tabs=['analyze','list','dashboard','notes'];
   document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('on',tabs[i]===t);});
-  ['analyze','list','dashboard','notes'].forEach(function(n){
-    var p=document.getElementById('pane-'+n);
-    if(!p)return;
-    p.classList.remove('on');
-    p.style.display='none';
+  // 모든 pane 숨김 (2회 반복으로 확실히)
+  ['pane-analyze','pane-list','pane-dashboard','pane-notes'].forEach(function(pid){
+    var p=document.getElementById(pid);
+    if(p){p.classList.remove('on');p.style.display='none';p.setAttribute('hidden','');}
   });
+  // 활성 pane 표시
   var el=document.getElementById('pane-'+t);
-  if(el){el.classList.add('on');el.style.display='block';}
+  if(el){
+    el.classList.add('on');
+    el.style.display='block';
+    el.removeAttribute('hidden');
+  }
   if(t==='list')renderList();
   if(t==='dashboard'){initYears();renderDash();}
   if(t==='notes')renderNotes();
 }
+
+
+// ─── API 크레딧 사용량 추정 ───
+var usageTracker={calls:+(localStorage.getItem('api_calls')||0),tokens:+(localStorage.getItem('api_tokens')||0)};
+
 function updateCreditBadge(){
   var badge=document.getElementById('credit-badge');
   var val=document.getElementById('credit-val');
@@ -598,12 +605,7 @@ function setFile(f){
   document.getElementById('frow').style.display='flex';
   document.getElementById('run').disabled=false;
   var w=document.getElementById('warn-box');
-  if(f.size/1024/1024>20){w.style.display='block';w.textContent=(function(){
-  var mb=(file?file.size/1024/1024:0).toFixed(1);
-  var pageEst=Math.ceil(parseFloat(mb)/0.35);
-  var chunks=Math.ceil(pageEst/10);
-  return '📄 파일: '+mb+'MB · 약 '+pageEst+'페이지 · '+chunks+'개 배치 분석 예정 (이미지 압축 전송)';
-}());}
+  if(f.size/1024/1024>20){w.style.display='block';w.textContent='파일이 크면 분석에 시간이 걸릴 수 있습니다. 100페이지 초과 시 자동으로 나눠서 분석합니다.';}
   else w.style.display='none';
 }
 function resetFile(){
@@ -637,69 +639,85 @@ function setProgress(cur,total){
   else bar.style.display='none';
 }
 
-var SYS="건설현장 산업안전보건관리비 전문 검토위원. 산업안전보건법 및 고용노동부 고시 기준 검토.\n[절대 금지] 문서재제출 요구 금지. 현재 페이지에 없는 증빙은 현페이지미확인. 미첨부 단정 금지.\n[최우선] 집계표(사용내역서 표지)에서 계상액(total_amount), 당월집행액(current_amount), 누계투입률(usage_rate), 공정률(process_rate), 현장명(project), 기간(period) 반드시 추출.\n[증빙인식] 세금계산서=공급자+부가세+작성일 포함 문서. 거래명세서=품목+수량+단가+금액 표. 급여명세서=성명+급여항목+지급총액. 개인보호구지급대장=보호구종류+지급일+서명란 대장.\n[인건비] 안전관리자 보건관리자 급여명세서 있으면 적정. 안전반장은 안전시설비 항목 정산 적정.\n[사내지침] 안전모:직원19000이하 근로자7000이하 보안경부착14000이하 1회채용시 / 안전벨트:직원전체식85000이하 근로자50000이하 1회채용시 / 안전화:상한80000이하 6개월\n[목적외금지] 일반공사자재 복리후생 격려금포상금 허위청구 안전무관사무용품\n[출력] 순수JSON만. 마크다운없음. {overall,summary,progress_review,items_summary,metrics:{total_amount,usage_rate,period,project,prev_cumulative,current_amount,subtotal,balance,process_rate,remarks},quick_verdict:{violations[],warnings[],goods[]},misuse_check:{overall_status,total_suspicious_amount,items[{item_name,vendor,page_ref,amount,reason,severity,legal_basis}],opinion},guideline_compliance:{overall_status,items[{category,vendor,page_ref,standard,actual,status,action}],opinion},tax_invoice_check:{status,items[{vendor,amount,status,page_ref,note}],opinion},ppe_ledger_check:{status,items[{ppe_name,quantity,page_ref,status,note}],opinion},action_required[{priority,item,vendor,page_ref,deadline}],issues[{level,content,page_ref}],recommendations}";
+var SYS="건설현장 산업안전보건관리비 전문 검토 전문가. 산업안전보건법 고용노동부 고시 사내 지침 기준으로 분석.\n[중요] 세금계산서 거래명세서는 PDF 전체(협력업체 안전관리비 사용내역서 하단 첨부 자료 포함)에서 빠짐없이 확인할 것. 특정 페이지에 없어도 다른 섹션에 있을 수 있으므로 미첨부로 단정하지 말 것.\n[협력업체별 구분] 원청 및 협력업체별로 집행 내역을 구분하여 검토. vendor 필드에 반드시 업체명 또는 원청 협력업체명 명시.\n[인건비 분류 기준] 안전관리자 보건관리자 인건비는 보호구 구입비와 별도로 계상되며 안전관리비 적정 사용 범위임. 안전반장 인건비는 안전시설비 항목으로 정산하며 급여명세서 작업일보로 증빙함. 이 항목들은 목적외 사용으로 판단하지 말 것.\n[사내 지침] 안전모: 직원용 19000원, 근로자일반 7000원, 보안경부착형 14000원, 1회채용시 / 안전벨트: 직원용전체식 85000원, 근로자 50000원, 1회채용시, 불필요공종제외 / 안전화: 상한80000원, 6개월\n[목적외 사용 금지] 일반공사자재, 복리후생비, 안전무관사무용품, 일반운영비, 허위중복청구, 격려금포상금회식비, 안전목적불명확한장비임차료\n규칙: 순수 JSON만 출력. 마크다운 없음. 각 문자열 150자 이내. 위반 주의 항목에 반드시 업체명(vendor)과 페이지(page_ref) 명시.\n{\"overall\":\"적정|주의|부적정\",\"summary\":\"핵심요약 3줄이내\",\"progress_review\":\"공정률 대비 집행률 평가 2문장이내\",\"items_summary\":\"금월 항목별 집행금액 요약 3줄이내\",\"metrics\":{\"total_amount\":\"계상액\",\"usage_rate\":\"투입률%\",\"period\":\"YYYY년 MM월\",\"project\":\"현장명\",\"prev_cumulative\":\"전월누계(없으면--)\",\"current_amount\":\"금회금액(없으면--)\",\"subtotal\":\"소계(없으면--)\",\"balance\":\"잔액(없으면--)\",\"process_rate\":\"공정률%(없으면--)\",\"remarks\":\"비고(없으면-)\"},\"quick_verdict\":{\"violations\":[\"위반내용(업체명 페이지 금액 포함)\"],\"warnings\":[\"주의내용(업체명 페이지 포함)\"],\"goods\":[\"양호내용\"]},\"misuse_check\":{\"overall_status\":\"이상없음|의심항목있음|목적외사용확인|확인불가\",\"total_suspicious_amount\":\"합계또는없음\",\"items\":[{\"item_name\":\"항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"amount\":\"금액\",\"reason\":\"사유50자\",\"severity\":\"경미|주의|위반\",\"legal_basis\":\"법령\"}],\"opinion\":\"1문장\"},\"guideline_compliance\":{\"overall_status\":\"준수|일부위반|위반|확인불가\",\"items\":[{\"category\":\"항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"standard\":\"기준\",\"actual\":\"실제\",\"status\":\"준수|위반|주의|확인불가\",\"action\":\"필요조치20자\"}],\"opinion\":\"1문장\"},\"tax_invoice_check\":{\"status\":\"일치|불일치|일부불일치|확인불가\",\"items\":[{\"vendor\":\"업체명\",\"amount\":\"금액\",\"status\":\"일치|불일치|미첨부\",\"page_ref\":\"페이지또는부\",\"note\":\"50자\"}],\"opinion\":\"1문장\"},\"ppe_ledger_check\":{\"status\":\"적정|미흡|누락|확인불가\",\"items\":[{\"ppe_name\":\"명칭\",\"quantity\":\"수량\",\"page_ref\":\"페이지또는부\",\"status\":\"적정|미흡|누락\",\"note\":\"30자\"}],\"opinion\":\"1문장\"},\"action_required\":[{\"priority\":\"긴급|일반\",\"item\":\"조치항목\",\"vendor\":\"업체명\",\"page_ref\":\"페이지또는부\",\"deadline\":\"즉시|1주이내|1개월이내\"}],\"issues\":[{\"level\":\"위반|주의|양호\",\"content\":\"100자\"}],\"recommendations\":\"150자\"}";
 
-async function splitPdf(arrayBuffer){
-  // pdf.js로 페이지를 저해상도 JPEG로 렌더링 (파일 크기 10분의 1)
+async function splitPdf(f){
+  var buf=await f.arrayBuffer();
+  if(!window.PDFLib){
+    var arr=new Uint8Array(buf);
+    var b64=btoa(Array.from(arr).map(function(b){return String.fromCharCode(b);}).join(''));
+    return [{b64:b64,startPage:1,endPage:'전체'}];
+  }
+  var PDFDocument=PDFLib.PDFDocument;
+  var srcDoc=await PDFDocument.load(buf,{ignoreEncryption:true});
+  var total=srcDoc.getPageCount();
+  var CHUNK=30; // 429 방지를 위해 50페이지 단위
+  if(total<=CHUNK){
+    var arr2=new Uint8Array(buf);
+    var b64_2=btoa(Array.from(arr2).map(function(b){return String.fromCharCode(b);}).join(''));
+    return [{b64:b64_2,startPage:1,endPage:total}];
+  }
   var chunks=[];
-  try{
-    var pdfDoc=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
-    var totalPages=pdfDoc.numPages;
-    var CHUNK_SIZE=10; // splitPdf 내부에서 CHUNK=10 사용 // 10페이지씩
-    var scale=1.2; // 해상도 (150 DPI 상당 - 텍스트 인식에 충분)
-    document.getElementById('lt').textContent='PDF 렌더링 중... (총 '+totalPages+'페이지)';
-    for(var start=1;start<=totalPages;start+=CHUNK){
-      var end=Math.min(start+CHUNK-1,totalPages);
-      var images=[];
-      for(var p=start;p<=end;p++){
-        var page=await pdfDoc.getPage(p);
-        var viewport=page.getViewport({scale:scale});
-        var canvas=document.createElement('canvas');
-        canvas.width=viewport.width;
-        canvas.height=viewport.height;
-        var ctx=canvas.getContext('2d');
-        await page.render({canvasContext:ctx,viewport:viewport}).promise;
-        // JPEG 압축 (0.7 품질 - 텍스트 인식 충분)
-        var imgData=canvas.toDataURL('image/jpeg',0.7);
-        images.push(imgData.split(',')[1]); // base64만 추출
-        canvas.remove();
-        document.getElementById('lt').textContent='렌더링 중... '+p+'/'+totalPages+'페이지';
-      }
-      var szKB=Math.round(images.reduce(function(acc,img){return acc+img.length;},0)*0.75/1024);
-      console.log('청크 '+start+'~'+end+'p: '+szKB+'KB ('+images.length+'개 이미지)');
-      chunks.push({startPage:start,endPage:end,images:images,type:'images'});
-    }
-  }catch(imgErr){
-    console.warn('pdf.js 렌더링 실패, PDF 방식으로 폴백:', imgErr.message);
-    // 폴백: pdf-lib 방식
-    var fallbackChunks=await splitPdfFallback(arrayBuffer);
-    return fallbackChunks;
+  for(var start=0;start<total;start+=CHUNK){
+    var end=Math.min(start+CHUNK,total);
+    var newDoc=await PDFDocument.create();
+    var idxs=[];for(var k=start;k<end;k++)idxs.push(k);
+    var pages=await newDoc.copyPages(srcDoc,idxs);
+    pages.forEach(function(p){newDoc.addPage(p);});
+    var bytes=await newDoc.save();
+    var b64c=btoa(Array.from(new Uint8Array(bytes)).map(function(b){return String.fromCharCode(b);}).join(''));
+    chunks.push({b64:b64c,startPage:start+1,endPage:end});
   }
   return chunks;
 }
 
-async function splitPdfFallback(arrayBuffer){
-  // 기존 pdf-lib 방식 (폴백용)
-  var chunks=[];
-  try{
-    var pdfDoc=await PDFDocument.load(arrayBuffer,{ignoreEncryption:true});
-    var totalPages=pdfDoc.getPageCount();
-    var CHUNK_SIZE=10; // splitPdf 내부에서 CHUNK=10 사용
-    for(var start=0;start<totalPages;start+=CHUNK){
-      var end=Math.min(start+CHUNK,totalPages);
-      var newDoc=await PDFDocument.create();
-      var indices=[];
-      for(var i=start;i<end;i++)indices.push(i);
-      var copied=await newDoc.copyPages(pdfDoc,indices);
-      copied.forEach(function(p){newDoc.addPage(p);});
-      var bytes=await newDoc.save();
-      var b64=btoa(String.fromCharCode.apply(null,new Uint8Array(bytes)));
-      chunks.push({startPage:start+1,endPage:end,b64:b64,type:'pdf'});
-    }
-  }catch(e){console.error('폴백도 실패:',e);}
-  return chunks;
+function mergeResults(arr){
+  if(arr.length===1)return arr[0];
+  var ORDER_OV=['부적정','주의','적정','확인불가'];
+  var ORDER_ST=['목적외사용확인','위반','불일치','누락','의심항목있음','일부위반','일부불일치','미흡','주의','이상없음','준수','일치','적정','양호','확인불가'];
+  function worstOv(a,b){var ai=ORDER_OV.indexOf(a),bi=ORDER_OV.indexOf(b);return(ai>=0&&(ai<bi||bi<0))?a:b;}
+  function worstSt(a,b){var ai=ORDER_ST.indexOf(a),bi=ORDER_ST.indexOf(b);return(ai>=0&&(ai<bi||bi<0))?a:b;}
+  var base=arr[0];
+  var merged={
+    overall:arr.reduce(function(a,r){return worstOv(a,r.overall||'적정');},'적정'),
+    summary:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.summary||'');}).join(' '),
+    metrics:base.metrics||{},
+    items_review:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.items_review||'');}).join('\n'),
+    misuse_check:{
+      overall_status:arr.reduce(function(a,r){return worstSt(a,r.misuse_check&&r.misuse_check.overall_status||'확인불가');},'이상없음'),
+      total_suspicious_amount:'전체 청크 합산',
+      items:arr.reduce(function(a,r){return a.concat(r.misuse_check&&r.misuse_check.items||[]);},[]),
+      opinion:arr.map(function(r){return r.misuse_check&&r.misuse_check.opinion||'';}).filter(Boolean).join(' ')
+    },
+    guideline_compliance:{
+      overall_status:arr.reduce(function(a,r){return worstSt(a,r.guideline_compliance&&r.guideline_compliance.overall_status||'확인불가');},'준수'),
+      items:arr.reduce(function(a,r){return a.concat(r.guideline_compliance&&r.guideline_compliance.items||[]);},[]),
+      opinion:arr.map(function(r){return r.guideline_compliance&&r.guideline_compliance.opinion||'';}).filter(Boolean).join(' ')
+    },
+    tax_invoice_check:{
+      status:arr.reduce(function(a,r){return worstSt(a,r.tax_invoice_check&&r.tax_invoice_check.status||'확인불가');},'일치'),
+      tax_invoice_detail:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.tax_invoice_detail||'';}).filter(Boolean).join(' / '),
+      statement_detail:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.statement_detail||'';}).filter(Boolean).join(' / '),
+      discrepancy:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.discrepancy||'';}).filter(function(v){return v&&v!=='없음';}).join(' / ')||'없음',
+      opinion:arr.map(function(r){return r.tax_invoice_check&&r.tax_invoice_check.opinion||'';}).filter(Boolean).join(' ')
+    },
+    ppe_ledger_check:{
+      status:arr.reduce(function(a,r){return worstSt(a,r.ppe_ledger_check&&r.ppe_ledger_check.status||'확인불가');},'적정'),
+      items:arr.reduce(function(a,r){return a.concat(r.ppe_ledger_check&&r.ppe_ledger_check.items||[]);},[]),
+      opinion:arr.map(function(r){return r.ppe_ledger_check&&r.ppe_ledger_check.opinion||'';}).filter(Boolean).join(' ')
+    },
+    issues:arr.reduce(function(a,r){return a.concat(r.issues||[]);},[]),
+    recommendations:arr.map(function(r){return r.recommendations||'';}).filter(Boolean).join(' ')
+  };
+  var seen={};
+  merged.issues=merged.issues.filter(function(iss){var k=iss.level+iss.content;if(seen[k])return false;seen[k]=true;return true;});
+  return merged;
 }
 
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+// 설정 캐시 (세션 1회만 서버에서 가져옴)
+var _cfg=null;
 async function getConfig(){
   if(_cfg)return _cfg;
   if(window.location.protocol==='file:'){
@@ -718,7 +736,7 @@ async function getConfig(){
   }catch(e){return {anthropicKey:'',firebase:null};}
 }
 
-async function callApi(b64,userMsg,images){
+async function callApi(b64,userMsg){
   var MAX_RETRY=4;var delay=15000;
   var cfg=await getConfig();
   var apiKey=cfg.anthropicKey||'';
@@ -731,15 +749,6 @@ async function callApi(b64,userMsg,images){
   }
   for(var attempt=1;attempt<=MAX_RETRY;attempt++){
     try{
-      // 청크 크기 체크
-      if(images&&images.length){
-        var imgSizeKB=Math.round(images.reduce(function(acc,img){return acc+img.length;},0)*0.75/1024);
-        console.log('청크 이미지 크기: '+imgSizeKB+'KB ('+images.length+'페이지)');
-      } else if(b64){
-        var b64SizeMB=(b64.length*0.75/1024/1024).toFixed(1);
-        console.log('청크 PDF 크기: '+b64SizeMB+'MB');
-        if(parseFloat(b64SizeMB)>20){console.warn('청크 너무 큼, 스킵');return null;}
-      }
       var resp=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{
@@ -749,17 +758,15 @@ async function callApi(b64,userMsg,images){
           'anthropic-dangerous-direct-browser-access':'true'
         },
         body:JSON.stringify({
-          model:'claude-haiku-4-5',
-          max_tokens:2000,
+          model:'claude-sonnet-4-5',
+          max_tokens:4096,
           system:SYS,
-          messages:[{role:'user',content:
-            (images&&images.length)?
-              images.map(function(img){return {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}};}).concat([{type:'text',text:userMsg}]):
-              [{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:userMsg}]
-          }]
+          messages:[{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+            {type:'text',text:userMsg}
+          ]}]
         })
       });
-      console.log('청크 응답 상태:', resp.status);
       if(resp.status===429){
         if(attempt===MAX_RETRY)return resp;
         var w=Math.round(delay/1000);
@@ -789,63 +796,40 @@ async function go(){
       document.getElementById('run').disabled=false;return;
     }
     var total=chunks.length;
-    var totalPages=chunks.length>0?(chunks[chunks.length-1].endPage||chunks.length*10):0;
     var results=[];
     var doneCount=0;
-    var results=[];
-    var BATCH=3; // 한 번에 3개씩 처리
-    document.getElementById('lt').textContent='총 '+total+'개 청크 분석 중... (배치 처리)';
-
-    for(var b=0;b<total;b+=BATCH){
-      var batchChunks=chunks.slice(b,Math.min(b+BATCH,total));
-      var batchPromises=batchChunks.map(function(chunk,bi){
-        var ci=b+bi;
-        var isFirstChunk=(ci===0);
-        var pageInfo=total>1?'[전체'+totalPages+'p중 '+chunk.startPage+'~'+chunk.endPage+'p] ':'';
-        var firstHint=isFirstChunk?'집계표에서 total_amount(계상액),current_amount(당월),usage_rate(투입률%),process_rate(공정률%),project(현장명),period(기간) 반드시 추출. ':'';
-        var evidenceHint='증빙(세금계산서/거래명세서/급여명세서/보호구지급대장) 인식. 없으면 현페이지미확인. 재제출요구 금지. ';
-        var notes=getNotes().slice(0,3).map(function(n){return n.content;}).join(' | ');
-        var noteHint=notes?'\n[피드백]: '+notes:'';
-        var userMsg=pageInfo+firstHint+evidenceHint+'JSON만 출력.'+noteHint;
-        return callApi(chunk.b64,userMsg,chunk.images).then(function(resp){
-          if(!resp)return null;
-          return resp.text().then(function(respText){
-            doneCount++;
-            document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+total+'청크 완료)';
-            try{
-              var data=JSON.parse(respText);
-              if(!resp.ok)return null;
-              var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
-              if(!raw)return null;
-              var clean=raw.replace(/```json[\s\S]*?```/g,function(m){return m.slice(7,-3);}).replace(/```/g,'').trim();
-              try{return JSON.parse(clean);}catch(e1){}
-              var s=clean.indexOf('{');var e=clean.lastIndexOf('}');
-              if(s>=0&&e>s){try{return JSON.parse(clean.substring(s,e+1));}catch(e2){}}
-              console.warn('청크'+ci+' 파싱실패:',raw.substring(0,200));
-              return null;
-            }catch(e){console.error('청크'+ci+' 오류:',e);return null;}
-          });
-        }).catch(function(e){console.error('청크'+ci+' 네트워크오류:',e);return null;});
-      });
-      var batchResults=await Promise.all(batchPromises);
-      batchResults.forEach(function(r){if(r!==null&&typeof r==='object')results.push(r);});
-      // 배치 간 딜레이 (마지막 배치 제외)
-      if(b+BATCH<total){
-        document.getElementById('lt').textContent='배치 완료 ('+Math.min(b+BATCH,total)+'/'+total+') · 다음 배치 준비 중...';
-        await sleep(3000);
-      }
-    }
-    console.log('최종 결과: '+results.length+'/'+total+'개 성공');
+    document.getElementById('lt').textContent=total>1?'총 '+total+'개 청크 동시 분석 중...':'AI 분석 중...';
+    var chunkPromises=chunks.map(function(chunk,ci){
+      // 개선노트 피드백 수집 (최근 5건)
+      var notes=getNotes().slice(0,5).map(function(n){return n.content;}).join(' | ');
+      var noteHint=notes?'\n[이전 피드백/개선사항]: '+notes:'';
+      var userMsg=total>1
+        ?('이 PDF는 원본의 '+chunk.startPage+'~'+chunk.endPage+'페이지 부분입니다. 산업안전보건관리비 내용을 검토하고 JSON만 출력하세요.'+noteHint)
+        :'산업안전보건관리비 PDF 검토. 목적외 사용 최우선. JSON만 출력.'+noteHint;
+      return callApi(chunk.b64,userMsg).then(function(resp){
+        if(!resp)return null;
+        return resp.text().then(function(respText){
+          doneCount++;
+          if(total>1)document.getElementById('lt').textContent='분석 중... ('+doneCount+'/'+total+'청크 완료)';
+          try{
+            var data=JSON.parse(respText);
+            if(!resp.ok)return null;
+            var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
+            if(!raw)return null;
+            var clean=raw.replace(/```json|```/g,'').trim();
+            var m=clean.match(/\{[\s\S]*\}/);
+            return m?JSON.parse(m[0]):null;
+          }catch(e){return null;}
+        });
+      }).catch(function(){return null;});
+    });
+    var chunkResults=await Promise.all(chunkPromises);
+    results=chunkResults.filter(function(r){return r!==null;})
     setProgress(total,total);
     if(!results.length){
       stopLd();document.getElementById('ld').style.display='none';
-      var failMsg='분석 결과를 얻지 못했습니다.\n원인: 파일 너무 큼 / 네트워크 불안정 / API 키 오류\n해결: 페이지 수 줄여서 재시도';
-      showErr('분석 실패',failMsg,null);
+      showErr('분석 실패','유효한 결과를 얻지 못했습니다. 다시 시도해주세요.',null);
       document.getElementById('run').disabled=false;return;
-    }
-    // 일부 청크만 성공해도 진행 (부분 결과 허용)
-    if(results.length<total){
-      console.warn('일부 청크 실패: '+results.length+'/'+total+' 성공');
     }
     document.getElementById('lt').textContent='결과 종합 중...';
     var d=mergeResults(results);
@@ -1308,13 +1292,13 @@ function renderList(){
   var q=(document.getElementById('list-q').value||'').toLowerCase();
   var rs=getRes();
   if(q)rs=rs.filter(function(r){
-    return(r.metrics&&r.metrics.project||r.project||'').toLowerCase().indexOf(q)>=0
+    return(r.metrics&&r.metrics.project||'').toLowerCase().indexOf(q)>=0
       ||(r.metrics&&r.metrics.period||'').toLowerCase().indexOf(q)>=0;
   });
   var lb=document.getElementById('list-body');
   lb.innerHTML='';
   if(!rs.length){
-    lb.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);"><div style="font-size:32px;margin-bottom:12px;">📋</div><div style="font-size:14px;font-weight:500;">저장된 검토 결과가 없습니다</div><div style="font-size:12px;margin-top:6px;">PDF 분석 후 💾 저장하면 여기에 표시됩니다</div></div>';
+    lb.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);">저장된 검토 결과가 없습니다.</div>';
     return;
   }
   rs.forEach(function(r){
@@ -1323,43 +1307,63 @@ function renderList(){
     var mis=(r.misuse_check&&r.misuse_check.overall_status)||'확인불가';
     var gui=(r.guideline_compliance&&r.guideline_compliance.overall_status)||'확인불가';
     var dt=r.analyzedAt?new Date(r.analyzedAt).toLocaleDateString('ko-KR'):'—';
+    // 카드 생성
     var card=document.createElement('div');
     card.className='li';
     card.innerHTML=
-      '<div class="li-top">'+
-        '<div>'+
-          '<div class="li-ttl"></div>'+
-          '<div class="li-sub"><span>'+xe(m.period||'기간 미확인')+'</span><span>·</span><span>'+dt+' 검토</span></div>'+
-        '</div>'+
-        '<span class="chip '+cc(ov)+'" style="font-size:12px;">'+ov+'</span>'+
-      '</div>'+
-      '<div class="li-meta">'+
-        '<div class="lm"><div class="lm-l">계상 총액</div><div class="lm-v" id="lm-ta-'+r.id+'">'+xe(m.total_amount||'—')+'</div></div>'+
-        '<div class="lm"><div class="lm-l">투입률</div><div class="lm-v" id="lm-ur-'+r.id+'">'+xe(m.usage_rate||'—')+'</div></div>'+
-        '<div class="lm"><div class="lm-l">목적외 사용</div><div class="lm-v"><span class="chip '+cc(mis)+'" style="font-size:11px;">'+mis+'</span></div></div>'+
-        '<div class="lm"><div class="lm-l">지침 준수</div><div class="lm-v"><span class="chip '+cc(gui)+'" style="font-size:11px;">'+gui+'</span></div></div>'+
-      '</div>'+
-      '<div class="li-acts">'+
-        '<button class="bsm bsm-v" data-view="'+r.id+'">📋 결과 보기</button>'+
-        '<button class="bsm bsm-d" data-del-res="'+r.id+'">🗑 삭제</button>'+
-      '</div>';
-    // 현장명 + ✏
+      '<div class="li-top">'
+      +'<div>'
+        +'<div class="li-ttl"></div>'
+        +'<div class="li-sub"><span>'+xe(m.period||'기간 미확인')+'</span><span>·</span><span>'+dt+' 검토</span></div>'
+      +'</div>'
+      +'<span class="chip '+cc(ov)+'" style="font-size:12px;">'+ov+'</span>'
+      +'</div>'
+      +'<div class="li-meta">'
+        +'<div class="lm"><div class="lm-l">계상 총액</div><div class="lm-v">'+xe(m.total_amount)+'</div></div>'
+        +'<div class="lm"><div class="lm-l">투입률</div><div class="lm-v">'+xe(m.usage_rate)+'</div></div>'
+        +'<div class="lm"><div class="lm-l">목적외 사용</div><div class="lm-v"><span class="chip '+cc(mis)+'" style="font-size:11px;">'+mis+'</span></div></div>'
+        +'<div class="lm"><div class="lm-l">지침 준수</div><div class="lm-v"><span class="chip '+cc(gui)+'" style="font-size:11px;">'+gui+'</span></div></div>'
+      +'</div>'
+      +'<div class="li-acts">'
+        +'<button class="bsm bsm-v" data-view="'+r.id+'">📋 결과 보기</button>'
+        +'<button class="bsm bsm-d" data-del-res="'+r.id+'">🗑 삭제</button>'
+      +'</div>';
+    // 현장명 + 편집 버튼
     var ttl=card.querySelector('.li-ttl');
-    ttl.appendChild(document.createTextNode(xe(m.project||r.project||'현장명 미확인')));
-    function makeEditBtn(label, field, targetEl){
-      var btn=document.createElement('span');
-      btn.textContent=' ✏'; btn.title=label+' 수정';
-      btn.style.cssText='font-size:10px;color:var(--text3);cursor:pointer;margin-left:3px;';
-      btn.onmouseenter=function(){this.style.color='var(--navy)';};
-      btn.onmouseleave=function(){this.style.color='var(--text3)';};
-      btn.onclick=function(e){e.stopPropagation();editField(r.id,field);};
-      targetEl.appendChild(btn);
-    }
-    makeEditBtn('현장명', 'project', ttl);
+    ttl.appendChild(document.createTextNode(xe(m.project||'현장명 미확인')));
+    var editBtn=document.createElement('span');
+    editBtn.textContent=' ✏';
+    editBtn.title='현장명 수정';
+    editBtn.style.cssText='font-size:11px;color:var(--text3);cursor:pointer;margin-left:4px;';
+    editBtn.onmouseenter=function(){this.style.color='var(--navy)';};
+    editBtn.onmouseleave=function(){this.style.color='var(--text3)';};
+    editBtn.onclick=function(e){e.stopPropagation();editField(r.id,'project');};
+    ttl.appendChild(editBtn);
+
+    // 계상총액 편집 버튼
     var taEl=card.querySelector('#lm-ta-'+r.id);
-    if(taEl)makeEditBtn('계상 총액', 'total_amount', taEl);
+    if(taEl){
+      var taBtn=document.createElement('span');
+      taBtn.textContent=' ✏';taBtn.title='계상 총액 수정';
+      taBtn.style.cssText='font-size:10px;color:var(--text3);cursor:pointer;margin-left:3px;';
+      taBtn.onmouseenter=function(){this.style.color='var(--navy)';};
+      taBtn.onmouseleave=function(){this.style.color='var(--text3)';};
+      taBtn.onclick=function(e){e.stopPropagation();editField(r.id,'total_amount');};
+      taEl.appendChild(taBtn);
+    }
+
+    // 투입률 편집 버튼
     var urEl=card.querySelector('#lm-ur-'+r.id);
-    if(urEl)makeEditBtn('투입률', 'usage_rate', urEl);
+    if(urEl){
+      var urBtn=document.createElement('span');
+      urBtn.textContent=' ✏';urBtn.title='투입률 수정';
+      urBtn.style.cssText='font-size:10px;color:var(--text3);cursor:pointer;margin-left:3px;';
+      urBtn.onmouseenter=function(){this.style.color='var(--navy)';};
+      urBtn.onmouseleave=function(){this.style.color='var(--text3)';};
+      urBtn.onclick=function(e){e.stopPropagation();editField(r.id,'usage_rate');};
+      urEl.appendChild(urBtn);
+    }
+
     lb.appendChild(card);
   });
 }

@@ -730,6 +730,13 @@ function mergeResults(arr){
   };
   var seen={};
   merged.issues=merged.issues.filter(function(iss){var k=iss.level+iss.content;if(seen[k])return false;seen[k]=true;return true;});
+  // metrics 모든 값을 문자열로 변환 (AI가 숫자로 반환할 수 있음)
+  if(merged.metrics){
+    Object.keys(merged.metrics).forEach(function(k){
+      if(merged.metrics[k]!==null&&merged.metrics[k]!==undefined)
+        merged.metrics[k]=String(merged.metrics[k]);
+    });
+  }
   // action_required 재제출 필터
   if(merged.action_required){
     merged.action_required=(merged.action_required||[]).filter(function(a){
@@ -852,8 +859,17 @@ async function go(){
             var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
             if(!raw)return null;
             var clean=raw.replace(/```json|```/g,'').trim();
-            var m=clean.match(/\{[\s\S]*\}/);
-            return m?JSON.parse(m[0]):null;
+            var parsed=null;
+            try{parsed=JSON.parse(clean);}catch(e1){}
+            if(!parsed){var m=clean.match(/\{[\s\S]*\}/);if(m)try{parsed=JSON.parse(m[0]);}catch(e2){}}
+            if(parsed&&parsed.metrics){
+              // AI가 숫자로 반환한 metrics 값을 모두 문자열로 변환
+              Object.keys(parsed.metrics).forEach(function(k){
+                if(parsed.metrics[k]!==null&&parsed.metrics[k]!==undefined)
+                  parsed.metrics[k]=String(parsed.metrics[k]);
+              });
+            }
+            return parsed||null;
           }catch(e){return null;}
         });
       }).catch(function(){return null;});

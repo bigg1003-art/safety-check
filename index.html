@@ -236,7 +236,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
       <div id="credit-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:5px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.2);cursor:pointer;" onclick="fetchCredit()" title="클릭하여 사용량 확인 / 초기화">
         💳 <span id="credit-val">잔액 확인 중...</span>
       </div>
-      <div class="ver-badge">v4.2</div>
+      <div class="ver-badge">v5.0</div>
     </div>
   </div>
 </header>
@@ -525,27 +525,18 @@ var MSGS=['PDF 분할 및 내용 파악 중...','목적외 사용 집중 검토 
 function goTab(t){
   var tabs=['analyze','list','dashboard','notes'];
   document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('on',tabs[i]===t);});
-  // 모든 pane 숨김 (2회 반복으로 확실히)
-  ['pane-analyze','pane-list','pane-dashboard','pane-notes'].forEach(function(pid){
-    var p=document.getElementById(pid);
-    if(p){p.classList.remove('on');p.style.display='none';p.setAttribute('hidden','');}
+  ['analyze','list','dashboard','notes'].forEach(function(n){
+    var p=document.getElementById('pane-'+n);
+    if(!p)return;
+    p.classList.remove('on');
+    p.style.display='none';
   });
-  // 활성 pane 표시
   var el=document.getElementById('pane-'+t);
-  if(el){
-    el.classList.add('on');
-    el.style.display='block';
-    el.removeAttribute('hidden');
-  }
+  if(el){el.classList.add('on');el.style.display='block';}
   if(t==='list')renderList();
   if(t==='dashboard'){initYears();renderDash();}
   if(t==='notes')renderNotes();
 }
-
-
-// ─── API 크레딧 사용량 추정 ───
-var usageTracker={calls:+(localStorage.getItem('api_calls')||0),tokens:+(localStorage.getItem('api_tokens')||0)};
-
 function updateCreditBadge(){
   var badge=document.getElementById('credit-badge');
   var val=document.getElementById('credit-val');
@@ -639,7 +630,7 @@ function setProgress(cur,total){
   else bar.style.display='none';
 }
 
-var SYS="건설현장 산업안전보건관리비 전문 검토위원.\n[절대 금지 사항] (1)재제출 요구 금지: 분석 시스템이 PDF 전체를 수신했으므로 문서 재제출을 action_required에 절대 기재하지 말것. (2)전체 페이지 중 일부만 받아도 미확인이지 미제출이 아님.\n[계상액 투입률 추출 최우선] 첫 페이지(집계표)에서 계상된안전관리비 total_amount와 투입률 usage_rate를 반드시 추출. 숫자가 보이면 무조건 기재.\n[증빙 판단] 현재 청크에 세금계산서 거래명세서가 없으면 현페이지미확인으로 처리. 절대 미첨부 단정 금지. 급여명세서 보호구지급대장도 동일.\n[증빙 인식 기준] 세금계산서=공급자+세액+작성일. 거래명세서=품목+수량+금액. 급여명세서=성명+지급총액. 보호구지급대장=보호구종류+지급일+서명. 해당 형식 보이면 첨부됨 판정.\n[협력업체 구분] vendor 필드 업체명 필수.\n[인건비] 안전관리자 보건관리자 급여명세서 있으면 적정. 안전반장 안전시설비 정산 적정.\n[사내 지침] 안전모: 직원19000 근로자7000 보안경부착14000 / 안전벨트: 직원85000 근로자50000 / 안전화: 상한80000 6개월\n[출력] 순수 JSON만. page_ref 필수.";
+var SYS="건설현장 산업안전보건관리비 전문 검토위원. 산업안전보건법 및 고용노동부 고시 기준 검토.\n[절대 금지] 문서재제출 요구 금지. 현재 페이지에 없는 증빙은 현페이지미확인. 미첨부 단정 금지.\n[최우선] 집계표(사용내역서 표지)에서 계상액(total_amount), 당월집행액(current_amount), 누계투입률(usage_rate), 공정률(process_rate), 현장명(project), 기간(period) 반드시 추출.\n[증빙인식] 세금계산서=공급자+부가세+작성일 포함 문서. 거래명세서=품목+수량+단가+금액 표. 급여명세서=성명+급여항목+지급총액. 개인보호구지급대장=보호구종류+지급일+서명란 대장.\n[인건비] 안전관리자 보건관리자 급여명세서 있으면 적정. 안전반장은 안전시설비 항목 정산 적정.\n[사내지침] 안전모:직원19000이하 근로자7000이하 보안경부착14000이하 1회채용시 / 안전벨트:직원전체식85000이하 근로자50000이하 1회채용시 / 안전화:상한80000이하 6개월\n[목적외금지] 일반공사자재 복리후생 격려금포상금 허위청구 안전무관사무용품\n[출력] 순수JSON만. 마크다운없음. {overall,summary,progress_review,items_summary,metrics:{total_amount,usage_rate,period,project,prev_cumulative,current_amount,subtotal,balance,process_rate,remarks},quick_verdict:{violations[],warnings[],goods[]},misuse_check:{overall_status,total_suspicious_amount,items[{item_name,vendor,page_ref,amount,reason,severity,legal_basis}],opinion},guideline_compliance:{overall_status,items[{category,vendor,page_ref,standard,actual,status,action}],opinion},tax_invoice_check:{status,items[{vendor,amount,status,page_ref,note}],opinion},ppe_ledger_check:{status,items[{ppe_name,quantity,page_ref,status,note}],opinion},action_required[{priority,item,vendor,page_ref,deadline}],issues[{level,content,page_ref}],recommendations}";
 
 async function splitPdf(f){
   var buf=await f.arrayBuffer();
@@ -855,10 +846,13 @@ async function go(){
             if(!resp.ok)return null;
             var raw=(data.content||[]).map(function(b){return b.text||'';}).join('');
             if(!raw)return null;
-            var clean=raw.replace(/```json|```/g,'').trim();
-            var m=clean.match(/\{[\s\S]*\}/);
-            return m?JSON.parse(m[0]):null;
-          }catch(e){return null;}
+            var clean=raw.replace(/```json[\s\S]*?```/g,function(m){return m.slice(7,-3);}).replace(/```/g,'').trim();
+            try{return JSON.parse(clean);}catch(e1){}
+            var s=clean.indexOf('{');var e=clean.lastIndexOf('}');
+            if(s>=0&&e>s){try{return JSON.parse(clean.substring(s,e+1));}catch(e2){}}
+            console.warn('파싱실패:',raw.substring(0,200));
+            return null;
+          }catch(e){console.error('오류:',e);return null;}
         });
       }).catch(function(e){console.error('청크 오류:',e);return null;});
     });
@@ -867,7 +861,7 @@ async function go(){
     setProgress(total,total);
     if(!results.length){
       stopLd();document.getElementById('ld').style.display='none';
-      var failMsg='모든 청크 분석 실패. 원인: (1)파일이 너무 큼 (2)API 키 오류 (3)네트워크 오류\n\n해결방법: PDF 페이지 수를 줄이거나 다시 시도해주세요.';
+      var failMsg='분석 결과를 얻지 못했습니다.\n원인: 파일 너무 큼 / 네트워크 불안정 / API 키 오류\n해결: 페이지 수 줄여서 재시도';
       showErr('분석 실패',failMsg,null);
       document.getElementById('run').disabled=false;return;
     }
@@ -1342,7 +1336,7 @@ function renderList(){
   var lb=document.getElementById('list-body');
   lb.innerHTML='';
   if(!rs.length){
-    lb.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);">저장된 검토 결과가 없습니다.</div>';
+    lb.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--text3);"><div style="font-size:32px;margin-bottom:12px;">📋</div><div style="font-size:14px;font-weight:500;">저장된 검토 결과가 없습니다</div><div style="font-size:12px;margin-top:6px;">PDF 분석 후 💾 저장하면 여기에 표시됩니다</div></div>';
     return;
   }
   rs.forEach(function(r){

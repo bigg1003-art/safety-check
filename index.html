@@ -639,7 +639,7 @@ function setProgress(cur,total){
   else bar.style.display='none';
 }
 
-var SYS="건설현장 산업안전보건관리비 전문 검토위원.\n[metrics 추출 최우선] 집계표(사용내역서 표지)가 보이면 반드시 추출: project=공사명, period=2026년05월형식, total_amount=계상된안전관리비금액(원단위숫자), current_amount=당월집행금액, usage_rate=비율%(소수점포함), process_rate=누계공정율%.숫자가보이면무조건기재.\n[절대금지] 재제출요구금지. 현페이지없는증빙=현페이지미확인. 미첨부단정금지.\n[지급주기완화] 지급주기는서류상확인어려우므로위반판정금지.지급대장수량있으면준수간주.\n[안전화] 목적외사용아님.사내지침(80000원이하)기준만검토.\n[증빙인식] 세금계산서=공급자+부가세+작성일.거래명세서=품목+수량+금액.급여명세서=성명+지급총액.보호구지급대장=종류+지급일+서명.\n[인건비] 안전관리자보건관리자급여명세서있으면적정.안전반장=안전시설비적정.\n[사내지침] 안전모:직원19000이하근로자7000이하보안경부착14000이하/안전벨트:직원85000이하근로자50000이하/안전화:80000이하\n[목적외금지] 일반자재복리후생격려금허위청구안전무관용품\n[출력] JSON만.마크다운금지.{overall,summary,progress_review,items_summary,metrics:{total_amount,usage_rate,period,project,prev_cumulative,current_amount,subtotal,balance,process_rate,remarks},quick_verdict:{violations[],warnings[],goods[]},misuse_check:{overall_status,total_suspicious_amount,items[],opinion},guideline_compliance:{overall_status,items[],opinion},tax_invoice_check:{status,items[],opinion},ppe_ledger_check:{status,items[],opinion},action_required[],issues[],recommendations}";
+var SYS="건설현장 산업안전보건관리비 전문 검토위원.\n[metrics 추출 최우선] 집계표(표지)에서: project=공사명, period=2026년05월형식, total_amount=계상액숫자, current_amount=당월금액, usage_rate=투입률%, process_rate=공정률%. 숫자보이면무조건기재.\n[issues 필수작성] issues 배열에 이 페이지 검토 결과를 반드시 1개 이상 작성. 형식: {level:위반|주의|양호, content:구체적내용(100자), page_ref:p.숫자}. 양호한 항목도 issues에 양호로 기재. 빈 배열 금지.\n[page_ref 필수] 모든 항목(issues, misuse_check.items, guideline_compliance.items, tax_invoice_check.items, ppe_ledger_check.items)에 page_ref를 실제 페이지번호로 기재. 현재 분석중인 페이지 범위를 p.시작~끝 형식으로.\n[절대금지] 재제출요구금지. 현페이지없는증빙=현페이지미확인. 미첨부단정금지.\n[지급주기완화] 지급주기는서류상확인어려우므로위반판정금지.지급대장수량있으면준수간주.\n[안전화] 목적외사용아님.사내지침(80000원이하)기준만검토.\n[증빙인식] 세금계산서=공급자+부가세+작성일.거래명세서=품목+수량+금액.급여명세서=성명+지급총액.보호구지급대장=종류+지급일+서명.\n[인건비] 안전관리자보건관리자급여명세서있으면적정.안전반장=안전시설비적정.\n[사내지침] 안전모:직원19000근로자7000보안경부착14000/안전벨트:직원85000근로자50000/안전화:80000\n[목적외금지] 일반자재복리후생격려금허위청구안전무관용품\n[출력] JSON만.마크다운금지.{overall,summary,progress_review,items_summary,metrics:{total_amount,usage_rate,period,project,prev_cumulative,current_amount,subtotal,balance,process_rate,remarks},quick_verdict:{violations[],warnings[],goods[]},misuse_check:{overall_status,total_suspicious_amount,items[],opinion},guideline_compliance:{overall_status,items[],opinion},tax_invoice_check:{status,items[],opinion},ppe_ledger_check:{status,items[],opinion},action_required[],issues[{level,content,page_ref}],recommendations}";
 
 async function splitPdf(f){
   return (async function(){
@@ -694,7 +694,7 @@ function mergeResults(arr){
   var base=arr[0];
   var merged={
     overall:arr.reduce(function(a,r){return worstOv(a,r.overall||'적정');},'적정'),
-    summary:arr.map(function(r,i){return(arr.length>1?('['+( i+1)+'부] '):'')+( r.summary||'');}).join(' '),
+    summary:(function(){var ss=arr.map(function(r){return r.summary||'';}).filter(function(s){return s&&s.trim()&&s!=='—';});return ss.length?ss[0]:'검토 완료';})(),
     metrics:(function(){
       var m=JSON.parse(JSON.stringify(base.metrics||{}));
       arr.forEach(function(r){
@@ -769,6 +769,21 @@ function mergeResults(arr){
         merged.quick_verdict[k]=(merged.quick_verdict[k]||[]).concat(r.quick_verdict[k]);
     });
   });
+
+  // 빈 행 제거: 모든 필드가 비어있거나 —인 항목 삭제
+  function isEmptyRow(item){
+    var vals=Object.keys(item).map(function(k){return item[k];});
+    return vals.every(function(v){return !v||v==='—'||v===''||v==='-';});
+  }
+  ['misuse_check','guideline_compliance','tax_invoice_check','ppe_ledger_check'].forEach(function(sec){
+    if(merged[sec]&&merged[sec].items){
+      merged[sec].items=merged[sec].items.filter(function(it){return !isEmptyRow(it);});
+    }
+  });
+  // issues 빈 항목 제거
+  if(merged.issues){
+    merged.issues=merged.issues.filter(function(iss){return iss.content&&iss.content.trim()&&iss.content!=='—';});
+  }
 return merged;
 }
 
@@ -1098,9 +1113,13 @@ function renderReport(d){
   }
 
   // 종합 의견
-  if(d.issues&&d.issues.length){
+  if(true){
     var issEl=document.getElementById('iss-list');
     issEl.innerHTML='';
+    // issues 비었으면 종합판정 기반 기본 의견 생성
+    if(!d.issues||!d.issues.length){
+      d.issues=[{level:(d.overall==='적정'?'양호':d.overall==='부적정'?'위반':'주의'),content:(d.summary||d.progress_review||'검토 결과 '+(d.overall||'적정')),page_ref:''}];
+    }
     d.issues.forEach(function(iss,idx){
       var needReview=(iss.level==='위반'||iss.level==='주의');
       var row=document.createElement('div');

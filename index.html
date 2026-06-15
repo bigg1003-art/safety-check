@@ -753,7 +753,23 @@ function mergeResults(arr){
       if(merged.metrics[k]==='—'||merged.metrics[k]==='미확인')merged.metrics[k]='';
     });
   }
-  return merged;
+  
+  // 누락 항목 보완: progress_review, items_summary는 첫 유효값
+  ['progress_review','items_summary','summary','recommendations'].forEach(function(k){
+    if(!merged[k]){
+      for(var i=0;i<arr.length;i++){if(arr[i]&&arr[i][k]){merged[k]=arr[i][k];break;}}
+    }
+  });
+  // quick_verdict 합산
+  if(!merged.quick_verdict)merged.quick_verdict={violations:[],warnings:[],goods:[]};
+  arr.forEach(function(r){
+    if(!r||!r.quick_verdict)return;
+    ['violations','warnings','goods'].forEach(function(k){
+      if(r.quick_verdict[k]&&r.quick_verdict[k].length)
+        merged.quick_verdict[k]=(merged.quick_verdict[k]||[]).concat(r.quick_verdict[k]);
+    });
+  });
+return merged;
 }
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
@@ -899,7 +915,6 @@ async function go(){
         await sleep(4000);
       }
     }
-    results=chunkResults.filter(function(r){return r!==null;})
     setProgress(total,total);
     if(!results.length){
       stopLd();document.getElementById('ld').style.display='none';
